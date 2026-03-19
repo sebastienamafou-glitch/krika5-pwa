@@ -1,0 +1,21 @@
+{
+  "name": "KRIKA'5 Snack Bar",
+  "short_name": "KRIKA'5",
+  "description": "Ton fast-food de qualité - Tous nos menus à 1500 FCFA",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#15803d",
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

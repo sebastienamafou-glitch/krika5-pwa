@@ -1,34 +1,37 @@
 // src/middleware.ts
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { jwtVerify } from 'jose';
 
-export function middleware(req: NextRequest) {
-  const basicAuth = req.headers.get('authorization');
+const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'krika5-super-secret-key-prod');
 
-  if (basicAuth) {
-    const authValue = basicAuth.split(' ')[1];
-    // Décodage Base64 standard
-    const [user, pwd] = atob(authValue).split(':');
+// Les routes que nous voulons protéger
+const protectedRoutes = ['/kds', '/admin', '/war-room'];
 
-    // Identifiants par défaut (à basculer dans ton fichier .env pour la production)
-    const validUser = process.env.KDS_USER || 'admin';
-    const validPass = process.env.KDS_PASSWORD || 'krika5';
+export async function middleware(req: NextRequest) {
+  const path = req.nextUrl.pathname;
+  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
 
-    if (user === validUser && pwd === validPass) {
+  if (isProtectedRoute) {
+    const token = req.cookies.get('kds_session')?.value;
+
+    if (!token) {
+      return NextResponse.redirect(new URL('/login', req.url));
+    }
+
+    try {
+      // Vérification cryptographique du jeton
+      await jwtVerify(token, SECRET_KEY);
       return NextResponse.next();
+    } catch (error) {
+      // Jeton invalide ou expiré
+      return NextResponse.redirect(new URL('/login', req.url));
     }
   }
 
-  // Refus et déclenchement de la modale native du navigateur
-  return new NextResponse('Accès non autorisé.', {
-    status: 401,
-    headers: {
-      'WWW-Authenticate': 'Basic realm="Panneau de contrôle KDS KRIKA\'5"',
-    },
-  });
+  return NextResponse.next();
 }
 
-// Le middleware ne s'exécute QUE sur la route /kds et ses sous-routes
 export const config = {
-  matcher: ['/kds/:path*'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|login|.*\\.png$).*)'],
 };

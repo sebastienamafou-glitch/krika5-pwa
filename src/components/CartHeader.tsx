@@ -20,7 +20,7 @@ export function CartHeader() {
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
         
         <h1 className="text-2xl font-black tracking-tight text-white">
-          KRIKA<span className="text-primary">'5</span>
+          KRIKA<span className="text-primary">&apos;5</span>
         </h1>
         
         <div className="flex items-center gap-4">

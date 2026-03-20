@@ -23,7 +23,7 @@ export default async function KDSPage() {
       <header className="mb-8 flex items-end justify-between border-b border-white/10 pb-4">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">
-            KDS <span className="text-primary">KRIKA'5</span>
+            KDS <span className="text-primary">KRIKA&apos;5</span>
           </h1>
           <p className="text-slate-400 mt-1 font-medium">Écran de contrôle cuisine</p>
         </div>

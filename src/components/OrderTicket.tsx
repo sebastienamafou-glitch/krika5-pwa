@@ -7,9 +7,18 @@ import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/componen
 import { Button } from '@/components/ui/button';
 import { Loader2, CheckCircle2 } from 'lucide-react';
 
-// Typage minimaliste pour le composant
+// Typage strict basé sur le schéma
 type OrderTicketProps = {
-  order: any; // Nous utilisons any ici pour la rapidité, mais en prod on typera avec Prisma
+  order: {
+    id: string;
+    createdAt: Date;
+    user: { phone: string };
+    items: {
+      id: string;
+      quantity: number;
+      product: { name: string };
+    }[];
+  };
 };
 
 export function OrderTicket({ order }: OrderTicketProps) {
@@ -41,7 +50,7 @@ export function OrderTicket({ order }: OrderTicketProps) {
       
       <CardContent className="flex-1 py-4">
         <ul className="space-y-3">
-          {order.items.map((item: any) => (
+          {order.items.map((item) => (
             <li key={item.id} className="flex justify-between text-white text-lg font-medium border-b border-white/5 pb-2 last:border-0">
               <span>
                 <span className="text-primary font-black mr-2">{item.quantity}x</span> 

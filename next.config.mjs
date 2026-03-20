@@ -1,25 +1,24 @@
 // next.config.mjs
-
-import withPWAInit from 'next-pwa';
+import withPWAInit from "@ducanh2912/next-pwa";
 
 const withPWA = withPWAInit({
-  dest: 'public', // Le Service Worker sera compilé dans le dossier public
-  disable: process.env.NODE_ENV === 'development', // Ne pas utiliser le cache PWA en dev pour faciliter le débug
-  register: true, // Le client enregistre automatiquement le SW
-  skipWaiting: true, // Mise à jour automatique de la PWA sans recharger manuellement
+  dest: "public",
+  cacheOnFrontEndNav: true,
+  aggressiveFrontEndNavCaching: true,
+  reloadOnOnline: true,
+  swcMinify: true,
+  // On désactive la PWA en mode développement pour éviter les conflits de cache
+  disable: process.env.NODE_ENV === "development", 
+  workboxOptions: {
+    disableDevLogs: true,
+  },
 });
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  reactStrictMode: true,
+  // Optionnel : si tu as des images externes (ex: Supabase), il faudra les déclarer ici
   images: {
-    // Si tu utilises Supabase Storage pour les images de tes burgers plus tard
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.supabase.co', // Autorise le domaine Supabase
-      },
-    ],
+    remotePatterns: [],
   },
 };
 

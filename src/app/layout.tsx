@@ -1,17 +1,16 @@
+// src/app/layout.tsx
 import type { Metadata, Viewport } from "next";
-import { Inter, Geist } from "next/font/google";
-import "./globals.css";
+import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
+import "./globals.css";
 
-const geist = Geist({subsets:['latin'],variable:'--font-sans'});
-
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
 export const viewport: Viewport = {
   themeColor: "#15803d",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Empêche le zoom automatique gênant sur iOS lors de la saisie
+  maximumScale: 1, // Empêche le zoom auto sur iOS
 };
 
 export const metadata: Metadata = {
@@ -34,8 +33,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={cn("font-sans", geist.variable)}>
-      <body className={inter.className}>{children}</body>
+    <html lang="fr">
+      <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
+        {children}
+      </body>
     </html>
   );
 }

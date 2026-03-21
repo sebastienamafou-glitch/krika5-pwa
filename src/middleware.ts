@@ -5,33 +5,46 @@ import { jwtVerify } from 'jose';
 
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'krika5-super-secret-key-prod');
 
-// Les routes que nous voulons protéger
-const protectedRoutes = ['/kds', '/admin', '/war-room'];
+// Routes nécessitant une authentification
+const protectedRoutes = ['/admin', '/war-room', '/kds', '/hub'];
 
-export async function middleware(req: NextRequest) {
-  const path = req.nextUrl.pathname;
-  const isProtectedRoute = protectedRoutes.some(route => path.startsWith(route));
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+  const token = request.cookies.get('kds_session')?.value;
 
-  if (isProtectedRoute) {
-    const token = req.cookies.get('kds_session')?.value;
+  let isValidToken = false;
+  let userRole = null;
 
-    if (!token) {
-      return NextResponse.redirect(new URL('/login', req.url));
-    }
-
+  if (token) {
     try {
-      // Vérification cryptographique du jeton
-      await jwtVerify(token, SECRET_KEY);
-      return NextResponse.next();
+      const { payload } = await jwtVerify(token, SECRET_KEY);
+      isValidToken = true;
+      userRole = payload.role;
     } catch {
-      // Jeton invalide ou expiré
-      return NextResponse.redirect(new URL('/login', req.url));
+      isValidToken = false;
     }
+  }
+
+  // A. Redirection intelligente : Employé déjà connecté -> Envoi direct sur le Hub
+  if (isValidToken && (pathname === '/' || pathname === '/login')) {
+    return NextResponse.redirect(new URL('/hub', request.url));
+  }
+
+  // B. Protection standard : Non connecté sur une route protégée -> Envoi au Login
+  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  if (isProtectedRoute && !isValidToken) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
+  // C. Sécurité de niveau 2 : Blocage strict des employés sur les routes Admin
+  if (pathname.startsWith('/admin') && userRole !== 'ADMIN') {
+    return NextResponse.redirect(new URL('/hub', request.url));
   }
 
   return NextResponse.next();
 }
 
+// Optimisation : On ne fait pas tourner le middleware sur les fichiers statiques
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|login|.*\\.png$).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)'],
 };

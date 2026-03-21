@@ -1,51 +1,42 @@
 // src/components/PusherListener.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
 
-// Configuration du client Pusher
-const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY;
-const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
-
 export function PusherListener() {
   const router = useRouter();
-  const [isListening, setIsListening] = useState(false);
 
   useEffect(() => {
-    // Si les clés ne sont pas configurées ou si on écoute déjà, on sort
-    if (!pusherKey || !pusherCluster || isListening) return;
+    const pusherKey = process.env.NEXT_PUBLIC_PUSER_KEY; // Vérifie bien l'orthographe ici (PUSER vs PUSHER)
+    const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
-    // Instanciation du client Pusher
+    if (!pusherKey || !pusherCluster) {
+      console.warn("⚠️ Configuration Pusher manquante dans le .env");
+      return;
+    }
+
+    // 1. Initialisation unique
     const pusher = new Pusher(pusherKey, {
       cluster: pusherCluster,
     });
 
-    // Souscription au canal KDS
     const channel = pusher.subscribe('kds-channel');
 
-    // Écoute de l'événement 'new-order'
-    channel.bind('new-order', (data: { message: string; orderId: string }) => {
-      console.log('Notification KDS reçue via Pusher:', data);
-      
-      // On déclenche un rafraîchissement Next.js silencieux pour récupérer les nouvelles données
-      router.refresh();
-      
-      // Optionnel : Tu pourrais ajouter un son ou une notification toast ici
+    // 2. Écoute de l'événement
+    channel.bind('new-order', (data: { orderId: string }) => {
+      console.log('🔔 Nouvelle commande KDS :', data.orderId);
+      router.refresh(); // Mise à jour des données serveur
     });
 
-    setIsListening(true);
-
-    // Nettoyage lors du démontage du composant
+    // 3. Nettoyage (Cleanup) : Crucial pour éviter les connexions multiples
     return () => {
       channel.unbind_all();
       channel.unsubscribe();
       pusher.disconnect();
-      setIsListening(false);
     };
-  }, [router, isListening]);
+  }, [router]); // Ne dépend que du router, s'exécute une seule fois au montage
 
-  // Ce composant est purement logique, il ne rend rien visuellement
   return null; 
 }

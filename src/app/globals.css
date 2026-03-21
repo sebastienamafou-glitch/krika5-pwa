@@ -43,3 +43,35 @@
     @apply bg-background text-foreground font-sans antialiased;
   }
 }
+
+/* À ajouter à la fin de src/app/globals.css */
+
+@media print {
+  @page {
+    margin: 0;
+    size: 80mm 297mm; /* Format standard ticket thermique 80mm */
+  }
+  
+  /* On cache toute l'application par défaut lors de l'impression */
+  body * {
+    visibility: hidden;
+  }
+  
+  /* On n'affiche que le conteneur du ticket et ses enfants */
+  #printable-ticket, #printable-ticket * {
+    visibility: visible;
+  }
+  
+  /* On positionne le ticket en haut à gauche sans marges */
+  #printable-ticket {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    padding: 2mm 5mm;
+    margin: 0;
+    font-family: monospace; /* Police système non lissée, idéale pour l'encre thermique */
+    color: black !important;
+    background: white !important;
+  }
+}

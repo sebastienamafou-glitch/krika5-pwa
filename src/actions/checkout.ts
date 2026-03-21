@@ -1,11 +1,10 @@
 // src/actions/checkout.ts
 'use server';
-import { Prisma } from '@prisma/client'; // Ajout de l'import Prisma
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache'; 
 import Pusher from 'pusher';
 
-// Initialisation du client Pusher côté serveur
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID as string,
   key: process.env.NEXT_PUBLIC_PUSHER_KEY as string,
@@ -18,6 +17,7 @@ export type CheckoutPayload = {
   phone: string;
   items: { id: string; price: number; quantity: number }[];
   totalAmount: number;
+  customerId?: string;
 };
 
 export async function submitOrder(payload: CheckoutPayload) {
@@ -26,12 +26,29 @@ export async function submitOrder(payload: CheckoutPayload) {
   }
 
   try {
-    // 1 à 3. Transaction explicite pour sécuriser les stocks et créer la commande
     const orderResult = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.upsert({
-        where: { phone: payload.phone },
-        update: {}, 
-        create: { phone: payload.phone },
+      const user = payload.customerId 
+        ? await tx.user.findUniqueOrThrow({ where: { id: payload.customerId } })
+        : await tx.user.upsert({
+            where: { phone: payload.phone },
+            update: {}, 
+            create: { phone: payload.phone },
+          });
+
+      let finalAmount = payload.totalAmount;
+      
+      // Utilisation du type strict Prisma pour éviter l'erreur d'inférence
+      const pointsUpdate: Prisma.IntFieldUpdateOperationsInput = user.loyaltyPoints >= 10 
+        ? { decrement: 10 } 
+        : { increment: 1 };
+
+      if (user.loyaltyPoints >= 10) {
+        finalAmount = 0; 
+      }
+
+      await tx.user.update({
+        where: { id: user.id },
+        data: { loyaltyPoints: pointsUpdate }
       });
 
       for (const item of payload.items) {
@@ -50,7 +67,7 @@ export async function submitOrder(payload: CheckoutPayload) {
       const order = await tx.order.create({
         data: {
           userId: user.id,
-          totalAmount: payload.totalAmount,
+          totalAmount: finalAmount,
           status: 'PENDING',
           paymentMethod: 'CASH', 
           items: {
@@ -66,17 +83,15 @@ export async function submitOrder(payload: CheckoutPayload) {
       return order;
     });
 
-    // 4. Notification Temps Réel via Pusher (KDS)
     try {
       await pusher.trigger('kds-channel', 'new-order', {
         message: 'Nouvelle commande à préparer',
         orderId: orderResult.id
       });
-    } catch (pusherError) {
-      console.error("Échec de la notification Pusher, mais commande validée :", pusherError);
+    } catch {
+      // Erreur Pusher silencieuse pour ne pas bloquer la transaction
     }
 
-    // 5. Invalidation des caches statiques Next.js
     revalidatePath('/kds'); 
     revalidatePath('/war-room/catalogue'); 
 
@@ -84,14 +99,9 @@ export async function submitOrder(payload: CheckoutPayload) {
 
   } catch (error) {
     console.error("Erreur Checkout:", error);
-    
-    // Type Guard pour éviter le type 'any'
-    if (error instanceof Prisma.PrismaClientKnownRequestError) {
-      if (error.code === 'P2025') {
-        return { success: false, error: "Un ou plusieurs articles sont en rupture de stock." };
-      }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+      return { success: false, error: "Stock insuffisant ou client introuvable." };
     }
-    
     return { success: false, error: "Échec de l'enregistrement en base." };
   }
 }

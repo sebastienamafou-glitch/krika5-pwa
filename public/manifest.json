@@ -1,12 +1,12 @@
 {
   "name": "KRIKA'5",
   "short_name": "KRIKA'5",
-  "description": "Menu unique à 1500 FCFA. Le classique revisité.",
-  "start_url": "/",
+  "description": "Système de point de vente et gestion de commandes",
+  "start_url": "/hub",
   "display": "standalone",
-  "background_color": "#0f172a",
-  "theme_color": "#f97316",
-  "orientation": "portrait",
+  "orientation": "any",
+  "background_color": "#020617",
+  "theme_color": "#ea580c",
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -17,8 +17,23 @@
     {
       "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ouvrir la Caisse",
+      "short_name": "Caisse",
+      "description": "Accéder directement au point de vente",
+      "url": "/war-room/pos",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Écran Cuisine",
+      "short_name": "Cuisine",
+      "description": "Voir les commandes en cours de préparation",
+      "url": "/kds",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

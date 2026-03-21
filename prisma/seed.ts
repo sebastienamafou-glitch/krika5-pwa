@@ -1,18 +1,21 @@
 // prisma/seed.ts
 import { PrismaClient, Role } from '@prisma/client';
+import bcrypt from 'bcryptjs'; // Importation de bcrypt
 
 const prisma = new PrismaClient();
 
 async function main() {
-  console.log('⏳ Début du peuplement de la base de données v2...');
+  console.log('⏳ Sécurisation et peuplement de la base...');
 
-  // 1. Création de l'Administrateur par défaut
+  const hashedPassword = await bcrypt.hash('krika5', 12); // Hachage avec un sel de 12
+
+  // 1. Création de l'Administrateur avec mot de passe haché
   await prisma.user.upsert({
     where: { phone: 'admin' },
-    update: {},
+    update: { password: hashedPassword }, // Mise à jour si déjà existant
     create: {
       phone: 'admin',
-      password: 'krika5', // À changer en production !
+      password: hashedPassword,
       role: Role.ADMIN,
     },
   });

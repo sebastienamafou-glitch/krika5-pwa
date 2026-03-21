@@ -47,7 +47,6 @@ export async function createStaffUser(data: CreateUserInput) {
         role: data.role,
       }
     });
-
     // 5. Invalidation du cache pour rafraîchir l'éventuelle liste des employés
     revalidatePath('/admin');
 
@@ -56,5 +55,25 @@ export async function createStaffUser(data: CreateUserInput) {
   } catch (error) {
     console.error("Erreur création utilisateur :", error);
     return { success: false, error: "Échec technique lors de la création de l'utilisateur." };
+  }
+}
+
+export async function deleteStaffUser(userId: string) {
+  try {
+    // Mesure de sécurité : on s'assure qu'on ne supprime pas un compte CUSTOMER par erreur
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || user.role === Role.CUSTOMER) {
+      return { success: false, error: "Opération non autorisée." };
+    }
+
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur lors de la révocation :", error);
+    return { success: false, error: "Échec de la révocation." };
   }
 }

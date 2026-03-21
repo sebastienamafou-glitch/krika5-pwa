@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useCartStore } from '@/store/useCartStore';
 import { useEffect, useState } from 'react';
 import { CartSheet } from './CartSheet'; 
@@ -16,13 +17,20 @@ export function CartHeader() {
 
   return (
     // Effet Glassmorphism : semi-transparent avec flou d'arrière-plan
-    <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
+    <header className="fixed top-0 left-0 w-full bg-slate-950/90 backdrop-blur-sm z-50 px-6 py-4 flex items-center justify-between border-b border-white/5">
       <div className="container mx-auto flex h-20 items-center justify-between px-4">
-        
-        <h1 className="text-2xl font-black tracking-tight text-white">
-          KRIKA<span className="text-primary">&apos;5</span>
-        </h1>
-        
+
+        <a href="#" className="inline-block transition-transform hover:scale-105">
+          <Image
+            src="/logo-krika5.png" // Assure-toi que ce fichier est dans ton dossier public
+            alt="Logo KRIKA'5" 
+            width={100}  // Précédemment 140
+            height={100} // Précédemment 140
+            className="mb-8 drop-shadow-2xl rounded-3xl" 
+            priority 
+          />
+        </a>
+
         <div className="flex items-center gap-4">
           {isMounted ? (
             <>

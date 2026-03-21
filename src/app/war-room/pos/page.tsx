@@ -1,8 +1,8 @@
 // src/app/war-room/pos/page.tsx
 import { prisma } from '@/lib/prisma';
 import Link from 'next/link';
-import { ArrowLeft, Banknote, CreditCard, CheckCircle2 } from 'lucide-react';
-import { PosTicket } from './PosTicket'; // Nous allons créer ce sous-composant juste après
+import { ArrowLeft, Banknote, CheckCircle2 } from 'lucide-react';
+import { PosTicket } from './PosTicket'; 
 
 export const dynamic = 'force-dynamic';
 

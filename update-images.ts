@@ -12,7 +12,7 @@ async function main() {
     'Menu Mini-Chawarma': 'https://images.unsplash.com/photo-1646754067167-17eb48a97577?auto=format&fit=crop&w=800&q=80',
     'Menu Duo Mini-Pizzas': 'https://images.unsplash.com/photo-1513104890138-7c749659a591?auto=format&fit=crop&w=800&q=80',
     'Bissap Maison': 'https://images.unsplash.com/photo-1615478503562-ec2d8aa0e24e?auto=format&fit=crop&w=800&q=80', // Jus rouge intense
-    'Gnamakoudji': 'https://images.unsplash.com/photo-1595981267035-7b04d84b5226?auto=format&fit=crop&w=800&q=80', // Jus gingembre/citron
+    'fantai': 'https://images.unsplash.com/photo-1595981267035-7b04d84b5226?auto=format&fit=crop&w=800&q=80', // Jus gingembre/citron
     'Coca-Cola (33cl)': 'https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=800&q=80',
   };
 

@@ -2,6 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import { ProductCard } from '@/components/ProductCard';
 import { CartHeader } from '@/components/CartHeader';
+import { Footer } from '@/components/Footer'; // Nouvel import
 import { Flame } from 'lucide-react';
 import Image from 'next/image';
 
@@ -20,7 +21,7 @@ export default async function Home() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-950 pb-24 font-sans">
+    <div className="min-h-screen bg-slate-950 pb-0 font-sans">
       <CartHeader />
       
       {/* Hero Section Brandée KRIKA'5 */}
@@ -28,13 +29,14 @@ export default async function Home() {
         <div className="absolute inset-0 bg-gradient-to-b from-primary/20 via-slate-950/50 to-slate-950 z-0"></div>
         <div className="max-w-4xl mx-auto relative z-10 text-center flex flex-col items-center">
           <Image 
-            src="/icon-512x512.png" 
+            src="/icon-512x512.png" // J'utilise ton logo rond pour la Hero
             alt="Logo KRIKA'5" 
             width={140} 
             height={140} 
             className="mb-8 drop-shadow-2xl rounded-3xl" 
             priority 
           />
+          {/* J'ai supprimé le texte "KRIKA'5" ici pour éviter les doublons avec le header */}
           <h2 className="text-5xl md:text-7xl font-black text-white uppercase tracking-tighter mb-6 leading-none">
             La Street-Food <br/>
             <span className="text-primary flex items-center justify-center gap-3 mt-2">
@@ -48,7 +50,7 @@ export default async function Home() {
       </section>
 
       {/* Boucle des Catégories (Menus, Boissons, etc.) */}
-      <main className="max-w-6xl mx-auto px-6 space-y-20 relative z-10 mt-8">
+      <main className="max-w-6xl mx-auto px-6 space-y-20 relative z-10 mt-8 mb-20"> {/* added margin-bottom for footer separation */}
         {categories.map((category) => (
           <section key={category.id} id={category.slug} className="scroll-mt-24">
             <div className="flex items-center gap-4 mb-8">
@@ -64,6 +66,8 @@ export default async function Home() {
           </section>
         ))}
       </main>
+
+      <Footer /> {/* Ajout du Footer à la fin */}
     </div>
   );
 }

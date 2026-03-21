@@ -23,7 +23,7 @@ export default async function CataloguePage() {
           <ArrowLeft className="mr-2 h-4 w-4" /> Retour à la War Room
         </Link>
         <h1 className="text-3xl font-black text-white tracking-tight">Catalogue & Stocks</h1>
-        <p className="text-slate-400 mt-1 font-medium">Contrôle en temps réel de la carte KRIKA'5</p>
+        <p className="text-slate-400 mt-1 font-medium">Contrôle en temps réel de la carte KRIKA&apos;5</p>
       </header>
 
       <div className="space-y-10">

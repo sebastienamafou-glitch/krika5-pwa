@@ -13,7 +13,8 @@ type ProductProps = {
     price: number;
     stock: number;
     isAvailable: boolean;
-  }
+    imageUrl: string | null;
+  };
 };
 
 export function ProductCard({ product }: ProductProps) {

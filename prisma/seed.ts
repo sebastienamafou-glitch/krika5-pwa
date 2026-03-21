@@ -76,7 +76,7 @@ async function main() {
     },
     {
       id: 'b2',
-      name: 'Gnamakoudji',
+      name: 'fantai',
       description: 'Jus de gingembre épicé et citron. Fait maison.',
       price: 500,
       categoryId: catBoisson.id,

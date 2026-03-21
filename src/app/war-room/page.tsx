@@ -30,15 +30,29 @@ export default async function WarRoomPage() {
       <header className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-white/10 pb-6">
         <div>
           <h1 className="text-4xl font-black text-white tracking-tight">War Room</h1>
-          <p className="text-slate-400 mt-2 font-medium text-lg">Tableau de bord des opérations KRIKA'5</p>
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-bold text-slate-400 uppercase">Chiffre d&apos;Affaires (Jour)</CardTitle>
+            <DollarSign className="h-5 w-5 text-green-500" />
+          </CardHeader>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          {/* Nouveau Bouton : CAISSE */}
+          <Link href="/war-room/pos" className="bg-green-600 hover:bg-green-500 text-white px-5 py-3 rounded-xl font-bold flex items-center transition-colors">
+            <DollarSign className="mr-2 h-5 w-5" /> Caisse (POS)
+          </Link>
+
           <Link href="/kds" className="bg-orange-600 hover:bg-orange-500 text-white px-5 py-3 rounded-xl font-bold flex items-center transition-colors">
-            <ChefHat className="mr-2 h-5 w-5" /> Ouvrir le KDS
+            <ChefHat className="mr-2 h-5 w-5" /> Écran Cuisine
           </Link>
+
           <Link href="/war-room/catalogue" className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-3 rounded-xl font-bold flex items-center transition-colors">
-            <Package className="mr-2 h-5 w-5" /> Gérer le Catalogue
+            <Package className="mr-2 h-5 w-5" /> Stocks
           </Link>
+          
+          {/* Nouveau Bouton : EXPORT CSV */}
+          <a href="/api/export/csv" download className="bg-white hover:bg-slate-200 text-slate-900 px-5 py-3 rounded-xl font-black flex items-center transition-colors shadow-lg">
+            <Activity className="mr-2 h-5 w-5" /> Export Excel
+          </a>
         </div>
       </header>
 
@@ -46,7 +60,7 @@ export default async function WarRoomPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
         <Card className="bg-slate-900 border-white/10 shadow-xl">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-bold text-slate-400 uppercase">Chiffre d'Affaires (Jour)</CardTitle>
+            <CardTitle className="text-sm font-bold text-slate-400 uppercase">Chiffre d&apos;Affaires (Jour)</CardTitle>
             <DollarSign className="h-5 w-5 text-green-500" />
           </CardHeader>
           <CardContent>
@@ -82,7 +96,7 @@ export default async function WarRoomPage() {
         </CardHeader>
         <CardContent className="p-0">
           {ordersToday.length === 0 ? (
-            <div className="p-10 text-center text-slate-500 font-medium">Aucune commande pour le moment aujourd'hui.</div>
+            <div className="p-10 text-center text-slate-500 font-medium">Aucune commande pour le moment aujourd&apos;hui.</div>
           ) : (
             <table className="w-full text-left text-sm text-slate-300">
               <thead className="bg-slate-950/50 text-xs uppercase text-slate-500">

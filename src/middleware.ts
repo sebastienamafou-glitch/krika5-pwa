@@ -23,7 +23,7 @@ export async function middleware(req: NextRequest) {
       // Vérification cryptographique du jeton
       await jwtVerify(token, SECRET_KEY);
       return NextResponse.next();
-    } catch (error) {
+    } catch {
       // Jeton invalide ou expiré
       return NextResponse.redirect(new URL('/login', req.url));
     }

@@ -13,7 +13,7 @@ async function main() {
     'Menu Mini-Chawarma': '/images/chawarma.jpg',
     'Menu Duo Mini-Pizzas': '/images/pizza.jpg',
     'Bissap Maison': '/images/bissap.jpg',
-    'Gnamakoudji': '/images/gnamakoudji.jpg',
+    'Fanta': '/images/fanta.jpg',
     'Coca-Cola (33cl)': '/images/coca.jpg',
   };
 

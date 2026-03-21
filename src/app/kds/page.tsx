@@ -1,7 +1,7 @@
 // src/app/kds/page.tsx
 import { prisma } from "@/lib/prisma";
 import { OrderTicket } from "@/components/OrderTicket";
-import { AutoRefresh } from "@/components/AutoRefresh"; // <-- 1. Ajout de l'import
+import { PusherListener } from '@/components/PusherListener';
 // Directive Next.js stricte : On force le rendu dynamique à chaque requête (pas de cache)
 export const dynamic = 'force-dynamic';
 
@@ -19,7 +19,7 @@ export default async function KDSPage() {
 
   return (
     <main className="min-h-screen bg-slate-950 p-6">
-      <AutoRefresh intervalMs={10000} /> {/* <-- 2. Injection du poll (10 secondes) */}
+      <PusherListener/> 
       <header className="mb-8 flex items-end justify-between border-b border-white/10 pb-4">
         <div>
           <h1 className="text-3xl font-black text-white tracking-tight">

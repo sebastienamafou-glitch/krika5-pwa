@@ -1,82 +1,142 @@
 // src/components/OrderTicket.tsx
 'use client';
 
-import { useTransition } from 'react';
-import { completeOrder } from '@/actions/order';
-import { Card, CardHeader, CardTitle, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Loader2, CheckCircle2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Clock, MapPin, ShoppingBag, Utensils, CheckCircle2, Loader2 } from 'lucide-react';
+import { markOrderAsReady } from '@/actions/kds'; 
 
-// Typage strict basé sur le schéma
-type OrderTicketProps = {
-  order: {
-    id: string;
-    createdAt: Date;
-    user: { phone: string };
-    items: {
-      id: string;
-      quantity: number;
-      product: { name: string };
-    }[];
-  };
-};
+interface OrderItem {
+  id: string;
+  quantity: number;
+  product: { name: string; };
+}
+
+interface KdsOrder {
+  id: string;
+  createdAt: Date;
+  orderType: 'TAKEAWAY' | 'DELIVERY'; // Le nouveau champ
+  deliveryAddress: string | null;     // Le nouveau champ
+  user: { phone: string; } | null;
+  items: OrderItem[];
+}
+
+interface OrderTicketProps {
+  order: KdsOrder;
+}
 
 export function OrderTicket({ order }: OrderTicketProps) {
-  const [isPending, startTransition] = useTransition();
+  const [elapsed, setElapsed] = useState(0);
+  const [isPending, setIsPending] = useState(false);
 
-  const handleComplete = () => {
-    startTransition(async () => {
-      await completeOrder(order.id);
-    });
+  const isDelivery = order.orderType === 'DELIVERY';
+  const isLate = elapsed > 15; // Commande en retard après 15 minutes
+
+  // Chronomètre en temps réel
+  useEffect(() => {
+    const calculateElapsed = () => {
+      const diff = Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / 60000);
+      setElapsed(diff);
+    };
+    calculateElapsed();
+    const timer = setInterval(calculateElapsed, 60000);
+    return () => clearInterval(timer);
+  }, [order.createdAt]);
+
+  const handleComplete = async () => {
+    setIsPending(true);
+    const result = await markOrderAsReady(order.id);
+    
+    if (!result.success) {
+      alert(result.error);
+      setIsPending(false);
+    }
   };
 
-  // Formatage de l'heure
-  const time = new Date(order.createdAt).toLocaleTimeString('fr-FR', { 
-    hour: '2-digit', 
-    minute: '2-digit' 
-  });
-
   return (
-    <Card className="flex flex-col border-white/10 bg-slate-900 shadow-xl transition-all">
-      <CardHeader className="border-b border-white/5 pb-3 bg-slate-800/50">
-        <div className="flex justify-between items-center">
-          <CardTitle className="text-xl font-black text-white">
-            #{order.id.split('-')[0].toUpperCase()}
-          </CardTitle>
-          <span className="text-primary font-black text-xl">{time}</span>
-        </div>
-        <p className="text-sm font-medium text-slate-400">Client: {order.user.phone}</p>
-      </CardHeader>
+    <div className={`flex flex-col rounded-[2rem] border-2 overflow-hidden shadow-xl transition-all ${
+      isDelivery 
+        ? 'bg-purple-950/20 border-purple-500/30 shadow-purple-900/20' // Thème Livraison
+        : 'bg-slate-900 border-white/10'                               // Thème Sur Place
+    }`}>
       
-      <CardContent className="flex-1 py-4">
-        <ul className="space-y-3">
+      {/* EN-TÊTE DU TICKET */}
+      <div className={`p-5 border-b flex justify-between items-start ${
+        isDelivery ? 'bg-purple-500/10 border-purple-500/20' : 'bg-white/5 border-white/5'
+      }`}>
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-xl font-black text-white tracking-tight">
+              #{order.id.slice(-5).toUpperCase()}
+            </span>
+            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1 ${
+              isDelivery ? 'bg-purple-500 text-white' : 'bg-primary text-white'
+            }`}>
+              {isDelivery ? <ShoppingBag className="w-3 h-3" /> : <Utensils className="w-3 h-3" />}
+              {isDelivery ? 'Livraison' : 'À Emporter'}
+            </span>
+          </div>
+          <p className="text-sm font-medium text-slate-400">Client: {order.user?.phone || 'Anonyme'}</p>
+        </div>
+
+        {/* CHRONOMÈTRE */}
+        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-sm ${
+          isLate ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-slate-950/50 text-slate-300'
+        }`}>
+          <Clock className="w-4 h-4" />
+          {elapsed} min
+        </div>
+      </div>
+
+      {/* ZONE ADRESSE (Affichée uniquement si Livraison) */}
+      {isDelivery && order.deliveryAddress && (
+        <div className="px-5 py-3 bg-purple-950/40 border-b border-purple-500/20 flex items-start gap-3">
+          <MapPin className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-purple-200 font-medium leading-snug">
+            {order.deliveryAddress}
+          </p>
+        </div>
+      )}
+
+      {/* LISTE DES PLATS */}
+      <div className="flex-1 p-5">
+        <ul className="space-y-4">
           {order.items.map((item) => (
-            <li key={item.id} className="flex justify-between text-white text-lg font-medium border-b border-white/5 pb-2 last:border-0">
-              <span>
-                <span className="text-primary font-black mr-2">{item.quantity}x</span> 
+            <li key={item.id} className="flex items-start gap-4">
+              <span className={`flex items-center justify-center w-8 h-8 rounded-lg font-black text-lg shrink-0 ${
+                isDelivery ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-800 text-white'
+              }`}>
+                {item.quantity}
+              </span>
+              <span className="text-white font-bold text-lg leading-tight pt-0.5">
                 {item.product.name}
               </span>
             </li>
           ))}
         </ul>
-      </CardContent>
-      
-      <CardFooter className="border-t border-white/5 pt-4">
-        <Button 
-          onClick={handleComplete} 
+      </div>
+
+      {/* BOUTON DE VALIDATION CUISINE */}
+      <div className="p-4 border-t border-white/5 bg-black/20">
+        <button 
+          onClick={handleComplete}
           disabled={isPending}
-          className="w-full bg-green-600 hover:bg-green-500 text-white font-bold h-14 rounded-xl text-lg"
+          className={`w-full py-4 rounded-xl font-black text-white transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm ${
+            isDelivery 
+              ? 'bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-500/20' 
+              : 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20'
+          }`}
         >
           {isPending ? (
-             <Loader2 className="h-6 w-6 animate-spin" /> 
+            <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <>
-              <CheckCircle2 className="mr-2 h-6 w-6" /> 
-              Servir la commande
+              <CheckCircle2 className="w-5 h-5" />
+              {isDelivery ? 'Prêt pour le livreur' : 'Commande Prête'}
             </>
           )}
-        </Button>
-      </CardFooter>
-    </Card>
+        </button>
+      </div>
+
+    </div>
   );
 }

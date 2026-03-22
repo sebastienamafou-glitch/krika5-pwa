@@ -1,15 +1,17 @@
 // src/app/hub/page.tsx
 import Link from 'next/link';
-import { Store, ChefHat, Settings, LayoutDashboard } from 'lucide-react';
+import Image from 'next/image';
+import { Store, ChefHat, Settings, Utensils, LogOut } from 'lucide-react';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import { jwtVerify } from 'jose';
+import { BRAND_NAME } from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'krika5-super-secret-key-prod');
 
 export default async function HubPage() {
-  // Optionnel mais recommandé : Vérifier le rôle pour cacher le bouton Admin au Staff
   let userRole = 'STAFF';
   try {
     const token = cookies().get('kds_session')?.value;
@@ -17,8 +19,13 @@ export default async function HubPage() {
       const { payload } = await jwtVerify(token, SECRET_KEY);
       userRole = payload.role as string;
     }
-  } catch {
-    // Si pas de session valide, le middleware s'occupera de rediriger vers /login
+  } catch { /* Redirection gérée par le middleware */ }
+
+  // Action Serveur : Destruction sécurisée de la session
+  async function handleLogout() {
+    'use server';
+    cookies().delete('kds_session');
+    redirect('/login'); // Redirige vers ta page d'authentification
   }
 
   const modules = [
@@ -38,44 +45,88 @@ export default async function HubPage() {
     },
     {
       title: "Catalogue",
-      description: "Gestion des produits et stocks",
+      description: "Stocks et disponibilité produits",
       href: "/war-room/catalogue",
-      icon: <LayoutDashboard className="w-12 h-12 mb-4 text-blue-400" />,
+      icon: <Utensils className="w-12 h-12 mb-4 text-blue-400" />,
       color: "hover:border-blue-500/50 hover:bg-blue-500/10",
     }
   ];
 
   return (
-    <main className="min-h-screen bg-slate-950 p-6 md:p-12 flex flex-col items-center justify-center">
-      <div className="max-w-4xl w-full">
-        <header className="mb-12 text-center">
-          <h1 className="text-4xl md:text-5xl font-black text-white tracking-tight">Portail <span className="text-primary">KRIKA&apos;5</span></h1>
-          <p className="text-slate-400 mt-4 text-lg">Sélectionnez votre espace de travail.</p>
-        </header>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {modules.map((mod) => (
-            <Link key={mod.href} href={mod.href} className={`flex flex-col items-center justify-center text-center p-8 rounded-3xl border border-white/10 bg-slate-900 transition-all duration-300 group ${mod.color}`}>
-              <div className="transform group-hover:scale-110 transition-transform duration-300">
-                {mod.icon}
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">{mod.title}</h2>
-              <p className="text-sm text-slate-400">{mod.description}</p>
-            </Link>
-          ))}
-          
-          {/* Le bouton Admin n'apparaît que pour les administrateurs */}
-          {userRole === 'ADMIN' && (
-            <Link href="/admin" className="flex flex-col items-center justify-center text-center p-8 rounded-3xl border border-white/10 bg-slate-900 transition-all duration-300 group hover:border-purple-500/50 hover:bg-purple-500/10 md:col-span-3 lg:col-span-1">
-              <div className="transform group-hover:scale-110 transition-transform duration-300">
-                <Settings className="w-12 h-12 mb-4 text-purple-400" />
-              </div>
-              <h2 className="text-xl font-bold text-white mb-2">Administration</h2>
-              <p className="text-sm text-slate-400">Gestion des accès et paramètres</p>
-            </Link>
-          )}
-        </div>
+    <main className="min-h-screen bg-slate-950 p-6 md:p-10 flex flex-col items-center relative">
+      
+      {/* BOUTON DÉCONNEXION */}
+      <div className="absolute top-6 right-6 md:top-10 md:right-10">
+        <form action={handleLogout}>
+          <button 
+            type="submit" 
+            className="flex items-center gap-2 px-4 py-3 bg-slate-900 border border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-xl font-bold transition-all text-xs uppercase tracking-widest shadow-lg shadow-red-900/10"
+          >
+            <LogOut className="w-4 h-4" />
+            <span className="hidden md:inline">Déconnexion</span>
+          </button>
+        </form>
       </div>
+
+      {/* SECTION LOGO + TITRE */}
+      <header className="mb-12 text-center flex flex-col items-center mt-12 md:mt-0">
+        {/* Format rectangulaire (w-48 h-20) pour épouser la forme naturelle du logo */}
+        <div className="relative w-48 h-20 mb-6 p-1 bg-gradient-to-tr from-primary to-orange-500 rounded-[2rem] shadow-2xl shadow-primary/20">
+            <div className="bg-slate-950 w-full h-full rounded-[1.7rem] relative flex items-center justify-center overflow-hidden p-3">
+                <div className="relative w-full h-full">
+                    <Image 
+                        src="/logo.png" 
+                        alt={`Logo ${BRAND_NAME}`} 
+                        fill
+                        className="object-contain"
+                        sizes="(max-width: 768px) 100vw, 33vw"
+                        priority
+                    />
+                </div>
+            </div>
+        </div>
+        
+        <h1 className="text-4xl font-black text-white tracking-tight">
+          Portail <span dangerouslySetInnerHTML={{ __html: BRAND_NAME }} />
+        </h1>
+        <p className="text-slate-500 mt-2 font-medium uppercase tracking-[0.2em] text-xs">
+          Système de Gestion Opérationnel
+        </p>
+      </header>
+
+      {/* GRILLE DES MODULES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-6xl">
+        {modules.map((mod) => (
+          <Link 
+            key={mod.href} 
+            href={mod.href} 
+            className={`flex flex-col items-center justify-center text-center p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/50 backdrop-blur-sm transition-all duration-500 group ${mod.color} hover:-translate-y-2`}
+          >
+            <div className="transform group-hover:scale-110 transition-transform duration-500 ease-out">
+              {mod.icon}
+            </div>
+            <h2 className="text-xl font-black text-white mb-2 uppercase tracking-wide">{mod.title}</h2>
+            <p className="text-sm text-slate-500 leading-relaxed">{mod.description}</p>
+          </Link>
+        ))}
+        
+        {userRole === 'ADMIN' && (
+          <Link 
+            href="/admin" 
+            className="flex flex-col items-center justify-center text-center p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/50 backdrop-blur-sm transition-all duration-500 group hover:border-purple-500/50 hover:bg-purple-500/10 md:col-span-2 lg:col-span-1 hover:-translate-y-2"
+          >
+            <div className="transform group-hover:scale-110 transition-transform duration-500 ease-out">
+              <Settings className="w-12 h-12 mb-4 text-purple-400" />
+            </div>
+            <h2 className="text-xl font-black text-white mb-2 uppercase tracking-wide">Configuration</h2>
+            <p className="text-sm text-slate-500 leading-relaxed">Administration & Accès Staff</p>
+          </Link>
+        )}
+      </div>
+
+      <footer className="mt-auto pt-12 text-slate-700 text-[10px] font-bold uppercase tracking-widest">
+        Version 2.0.4 &mdash; Build Stable
+      </footer>
     </main>
   );
 }

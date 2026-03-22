@@ -65,6 +65,11 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum OrderType {
+  TAKEAWAY  // À emporter / Sur place
+  DELIVERY  // Livraison
+}
+
 model Order {
   id            String      @id @default(cuid())
   userId        String
@@ -76,6 +81,8 @@ model Order {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   paymentStatus PaymentStatus @default(UNPAID)
+  orderType       OrderType     @default(TAKEAWAY)
+  deliveryAddress String?       
 }
 
 model OrderItem {

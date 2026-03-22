@@ -1,10 +1,12 @@
 // src/actions/checkout.ts
 'use server';
+
 import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache'; 
 import Pusher from 'pusher';
 
+// Initialisation de Pusher pour le KDS
 const pusher = new Pusher({
   appId: process.env.PUSHER_APP_ID as string,
   key: process.env.NEXT_PUBLIC_PUSHER_KEY as string,
@@ -13,20 +15,29 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
+// 1. Mise à jour du typage strict avec les champs de livraison
 export type CheckoutPayload = {
   phone: string;
   items: { id: string; price: number; quantity: number }[];
   totalAmount: number;
   customerId?: string;
+  orderType: 'TAKEAWAY' | 'DELIVERY'; // Obligatoire pour savoir comment traiter la commande
+  deliveryAddress?: string;           // Optionnel, requis uniquement si DELIVERY
 };
 
 export async function submitOrder(payload: CheckoutPayload) {
+  // 2. Validation renforcée des données entrantes
   if (!payload.phone || payload.items.length === 0) {
-    return { success: false, error: "Données invalides." };
+    return { success: false, error: "Données de commande invalides." };
+  }
+
+  if (payload.orderType === 'DELIVERY' && (!payload.deliveryAddress || payload.deliveryAddress.trim().length < 5)) {
+    return { success: false, error: "Une adresse précise est requise pour la livraison." };
   }
 
   try {
     const orderResult = await prisma.$transaction(async (tx) => {
+      // A. Identification ou création du client
       const user = payload.customerId 
         ? await tx.user.findUniqueOrThrow({ where: { id: payload.customerId } })
         : await tx.user.upsert({
@@ -37,7 +48,7 @@ export async function submitOrder(payload: CheckoutPayload) {
 
       let finalAmount = payload.totalAmount;
       
-      // Utilisation du type strict Prisma pour éviter l'erreur d'inférence
+      // B. Gestion de la fidélité (10ème commande offerte)
       const pointsUpdate: Prisma.IntFieldUpdateOperationsInput = user.loyaltyPoints >= 10 
         ? { decrement: 10 } 
         : { increment: 1 };
@@ -51,6 +62,7 @@ export async function submitOrder(payload: CheckoutPayload) {
         data: { loyaltyPoints: pointsUpdate }
       });
 
+      // C. Décrémentation stricte des stocks
       for (const item of payload.items) {
         await tx.product.update({
           where: { 
@@ -64,12 +76,15 @@ export async function submitOrder(payload: CheckoutPayload) {
         });
       }
 
+      // D. Création de la commande avec le type et l'adresse
       const order = await tx.order.create({
         data: {
           userId: user.id,
           totalAmount: finalAmount,
           status: 'PENDING',
-          paymentMethod: 'CASH', 
+          paymentMethod: 'CASH',
+          orderType: payload.orderType, // Enregistrement du type (TAKEAWAY / DELIVERY)
+          deliveryAddress: payload.orderType === 'DELIVERY' ? payload.deliveryAddress : null,
           items: {
             create: payload.items.map((item) => ({
               productId: item.id,
@@ -83,15 +98,17 @@ export async function submitOrder(payload: CheckoutPayload) {
       return order;
     });
 
+    // 3. Notification temps réel à la cuisine (KDS)
     try {
       await pusher.trigger('kds-channel', 'new-order', {
-        message: 'Nouvelle commande à préparer',
+        message: payload.orderType === 'DELIVERY' ? 'Nouvelle commande en LIVRAISON' : 'Nouvelle commande À EMPORTER',
         orderId: orderResult.id
       });
     } catch {
       // Erreur Pusher silencieuse pour ne pas bloquer la transaction
     }
 
+    // 4. Invalidation du cache pour rafraîchir les écrans
     revalidatePath('/kds'); 
     revalidatePath('/war-room/catalogue'); 
 

@@ -9,25 +9,30 @@ export type CartItem = {
   quantity: number;
 };
 
-// 1. Nouveau type pour les commandes en attente de synchronisation
 export type PendingOrder = {
-  id: string; // ID temporaire généré localement
+  id: string; 
   phone: string;
   items: CartItem[];
   totalAmount: number;
   createdAt: number;
+  customerId?: string; 
+  // --- LES NOUVEAUX CHAMPS MANQUANTS SONT LÀ ---
+  orderType?: 'TAKEAWAY' | 'DELIVERY'; 
+  deliveryAddress?: string;            
 };
 
 interface CartStore {
   items: CartItem[];
-  pendingOrders: PendingOrder[]; // 2. La file d'attente hors-ligne
+  pendingOrders: PendingOrder[]; 
   
+  customerId: string | null;
+  setCustomer: (id: string | null) => void;
+
   addItem: (product: Omit<CartItem, 'quantity'>) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   getTotal: () => number;
   
-  // 3. Actions pour gérer la file d'attente
   enqueueOrder: (order: Omit<PendingOrder, 'id' | 'createdAt'>) => void;
   dequeueOrder: (id: string) => void;
 }
@@ -36,8 +41,11 @@ export const useCartStore = create<CartStore>()(
   persist(
     (set, get) => ({
       items: [],
-      pendingOrders: [], // Initialisation à vide
+      pendingOrders: [], 
+      customerId: null,
       
+      setCustomer: (id) => set({ customerId: id }),
+
       addItem: (product) => {
         const currentItems = get().items;
         const existingItem = currentItems.find((item) => item.id === product.id);
@@ -61,25 +69,21 @@ export const useCartStore = create<CartStore>()(
         });
       },
       
-      clearCart: () => set({ items: [] }),
+      clearCart: () => set({ items: [], customerId: null }),
       
       getTotal: () => {
         return get().items.reduce((total, item) => total + item.price * item.quantity, 0);
       },
 
-      // --- LOGIQUE OFFLINE-FIRST ---
-
-      // Met la commande en attente de réseau
       enqueueOrder: (orderData) => {
         const newOrder: PendingOrder = {
           ...orderData,
           id: `local-${Date.now()}`,
           createdAt: Date.now(),
         };
-        set({ pendingOrders: [...get().pendingOrders, newOrder] });
+        set({ pendingOrders: [...get().pendingOrders, newOrder], customerId: null });
       },
 
-      // Supprime la commande de la file une fois qu'elle a été envoyée avec succès à Neon
       dequeueOrder: (id) => {
         set({
           pendingOrders: get().pendingOrders.filter((o) => o.id !== id),
@@ -87,7 +91,7 @@ export const useCartStore = create<CartStore>()(
       },
     }),
     {
-      name: 'krika5-cart-storage', // Les commandes en attente survivront au rafraîchissement de la page
+      name: 'krika5-cart-storage', 
     }
   )
 );

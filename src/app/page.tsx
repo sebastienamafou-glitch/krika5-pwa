@@ -5,7 +5,7 @@ import { CartHeader } from '@/components/CartHeader';
 import { Footer } from '@/components/Footer';
 import { Flame, Compass } from 'lucide-react';
 import Image from 'next/image';
-
+import { OrderRadar } from '@/components/OrderRadar'; // <-- IMPORT DU RADAR
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
@@ -21,6 +21,7 @@ export default async function Home() {
   return (
     <div className="min-h-screen bg-slate-950 pb-0 font-sans">
       <CartHeader />
+      <OrderRadar /> {/* RADAR DE SUIVI DE COMMANDE */}
       
       {/* Hero Section Brandée KRIKA'5 */}
       <section className="relative pt-32 pb-16 px-6 overflow-hidden">

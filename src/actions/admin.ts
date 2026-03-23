@@ -13,18 +13,15 @@ export type CreateUserInput = {
 };
 
 export async function createStaffUser(data: CreateUserInput) {
-  // 1. Validation stricte des entrées
   if (!data.phone || !data.role) {
     return { success: false, error: "Le numéro de téléphone et le rôle sont requis." };
   }
 
-  // Règle métier : ADMIN et STAFF doivent avoir un mot de passe
   if ((data.role === Role.ADMIN || data.role === Role.STAFF) && !data.password) {
     return { success: false, error: "Un mot de passe est obligatoire pour les accès restreints." };
   }
 
   try {
-    // 2. Prévention des doublons (Contrainte d'unicité sur le téléphone)
     const existingUser = await prisma.user.findUnique({
       where: { phone: data.phone }
     });
@@ -33,13 +30,11 @@ export async function createStaffUser(data: CreateUserInput) {
       return { success: false, error: "Ce numéro de téléphone est déjà enregistré." };
     }
 
-    // 3. Hachage asymétrique du mot de passe
     let hashedPassword = null;
     if (data.password) {
       hashedPassword = await bcrypt.hash(data.password, 10);
     }
 
-    // 4. Insertion sécurisée
     await prisma.user.create({
       data: {
         phone: data.phone,
@@ -47,9 +42,8 @@ export async function createStaffUser(data: CreateUserInput) {
         role: data.role,
       }
     });
-    // 5. Invalidation du cache pour rafraîchir l'éventuelle liste des employés
-    revalidatePath('/admin');
 
+    revalidatePath('/admin');
     return { success: true };
     
   } catch (error) {
@@ -58,22 +52,22 @@ export async function createStaffUser(data: CreateUserInput) {
   }
 }
 
-export async function deleteStaffUser(userId: string) {
+// CORRECTION : On force le retour à Promise<void> pour satisfaire l'attribut "action" du formulaire
+export async function deleteStaffUser(formData: FormData): Promise<void> {
+  const userId = formData.get('userId') as string;
+
+  if (!userId) return;
+
   try {
-    // Mesure de sécurité : on s'assure qu'on ne supprime pas un compte CUSTOMER par erreur
     const user = await prisma.user.findUnique({ where: { id: userId } });
-    if (!user || user.role === Role.CUSTOMER) {
-      return { success: false, error: "Opération non autorisée." };
-    }
+    if (!user || user.role === Role.CUSTOMER) return;
 
     await prisma.user.delete({
       where: { id: userId }
     });
 
     revalidatePath('/admin');
-    return { success: true };
   } catch (error) {
     console.error("Erreur lors de la révocation :", error);
-    return { success: false, error: "Échec de la révocation." };
   }
 }

@@ -3,21 +3,28 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
-import { pusherServer } from '@/lib/pusher'; // NOUVEAU : Import de Pusher
+import { pusherServer } from '@/lib/pusher';
 
 export async function markOrderAsReady(orderId: string) {
   try {
+    // 1. Mise à jour en base de données
     await prisma.order.update({
       where: { id: orderId },
       data: { status: 'COMPLETED' } 
     });
 
-    // NOUVEAU : On prévient le reste du restaurant que c'est prêt
+    // 2. Communication Interne : On prévient les autres écrans (Caisse, Hub)
     await pusherServer.trigger('kds-channel', 'order-ready', {
       orderId: orderId,
     });
 
+    // 3. LA KILLER FEATURE (Buzzer) : On cible le téléphone exact du client
+    await pusherServer.trigger(`order-${orderId}`, 'status-updated', { 
+      status: 'COMPLETED' 
+    });
+
     revalidatePath('/kds');
+    revalidatePath('/war-room');
     
     return { success: true };
   } catch (error) {

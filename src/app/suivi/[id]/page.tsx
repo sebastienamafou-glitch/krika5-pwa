@@ -13,9 +13,12 @@ interface PageProps {
 }
 
 export default async function TrackingPage({ params }: PageProps) {
+ // On sécurise l'ID en forçant les minuscules
+  const safeId = params.id.toLowerCase();
+
   // On va chercher la commande dans la base de données
   const order = await prisma.order.findUnique({
-    where: { id: params.id },
+    where: { id: safeId },
     select: { id: true, status: true, orderType: true }
   });
 

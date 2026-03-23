@@ -5,7 +5,7 @@ import { useState, useTransition, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { useCartStore } from "@/store/useCartStore";
 import { Trash2, Loader2, WifiOff, QrCode, MapPin, ShoppingBag, CheckCircle2, Navigation } from "lucide-react";
-import { usePathname } from "next/navigation"; 
+import { usePathname, useRouter } from "next/navigation"; // Ajout de useRouter
 import { Button } from "@/components/ui/button";
 import { submitOrder } from "@/actions/checkout";
 
@@ -13,6 +13,7 @@ const DELIVERY_FEE = 1000;
 
 export function CartSheet() {
   const pathname = usePathname(); 
+  const router = useRouter(); // Initialisation du router
   
   const { 
     items, 
@@ -133,12 +134,20 @@ export function CartSheet() {
         deliveryLng: orderType === 'DELIVERY' ? location?.lng : undefined,
       });
 
-      if (result.success) {
+      if (result.success && result.orderId) { // Vérification de orderId
         clearCart(); 
         setPhone("");
         setAddress("");
         setLocation(null);
-        setSuccessOrder(result.orderId?.split('-')[0].toUpperCase() || "OK");
+        
+        // REDIRECTION MAGIQUE (Uniquement pour le client, pas pour la caisse)
+        if (!isPosInterface) {
+          setIsOpen(false); // On ferme le panneau
+          router.push(`/suivi/${result.orderId}`); // On propulse vers le tracker
+        } else {
+          // Comportement classique pour la caisse
+          setSuccessOrder(result.orderId.split('-')[0].toUpperCase());
+        }
       } else {
         alert(result.error || "Une erreur est survenue.");
       }
@@ -344,7 +353,7 @@ export function CartSheet() {
                     {isPending ? (
                       <Loader2 className="h-6 w-6 animate-spin" />
                     ) : (
-                      isPosInterface ? "Valider l&apos;encaissement" : "Commander maintenant"
+                      isPosInterface ? "Valider l'encaissement" : "Commander maintenant"
                     )}
                   </Button>
                 </div>

@@ -1,7 +1,7 @@
 // src/app/hub/page.tsx
 import Link from 'next/link';
 import Image from 'next/image';
-import { Store, ChefHat, Settings, Utensils, LogOut, Bike, BookOpen } from 'lucide-react';
+import { Store, ChefHat, Settings, Utensils, LogOut, Bike, BookOpen, Activity } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { jwtVerify } from 'jose';
@@ -25,7 +25,7 @@ export default async function HubPage() {
   async function handleLogout() {
     'use server';
     cookies().delete('kds_session');
-    redirect('/login'); // Redirige vers ta page d'authentification
+    redirect('/login');
   }
 
   const modules = [
@@ -118,16 +118,28 @@ export default async function HubPage() {
         ))}
         
         {userRole === 'ADMIN' && (
-          <Link 
-            href="/admin" 
-            className="flex flex-col items-center justify-center text-center p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/50 backdrop-blur-sm transition-all duration-500 group hover:border-purple-500/50 hover:bg-purple-500/10 md:col-span-2 lg:col-span-1 hover:-translate-y-2"
-          >
-            <div className="transform group-hover:scale-110 transition-transform duration-500 ease-out">
-              <Settings className="w-12 h-12 mb-4 text-purple-400" />
-            </div>
-            <h2 className="text-xl font-black text-white mb-2 uppercase tracking-wide">Configuration</h2>
-            <p className="text-sm text-slate-500 leading-relaxed">Administration & Accès Staff</p>
-          </Link>
+          <>
+            <Link 
+              href="/war-room" 
+              className="flex flex-col items-center justify-center text-center p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/50 backdrop-blur-sm transition-all duration-500 group hover:border-pink-500/50 hover:bg-pink-500/10 hover:-translate-y-2"
+            >
+              <div className="transform group-hover:scale-110 transition-transform duration-500 ease-out">
+                <Activity className="w-12 h-12 mb-4 text-pink-400" />
+              </div>
+              <h2 className="text-xl font-black text-white mb-2 uppercase tracking-wide">War Room</h2>
+              <p className="text-sm text-slate-500 leading-relaxed">Tableau de bord global</p>
+            </Link>
+            <Link 
+              href="/admin" 
+              className="flex flex-col items-center justify-center text-center p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/50 backdrop-blur-sm transition-all duration-500 group hover:border-purple-500/50 hover:bg-purple-500/10 hover:-translate-y-2"
+            >
+              <div className="transform group-hover:scale-110 transition-transform duration-500 ease-out">
+                <Settings className="w-12 h-12 mb-4 text-purple-400" />
+              </div>
+              <h2 className="text-xl font-black text-white mb-2 uppercase tracking-wide">Configuration</h2>
+              <p className="text-sm text-slate-500 leading-relaxed">Administration & Accès Staff</p>
+            </Link>
+          </>
         )}
       </div>
 

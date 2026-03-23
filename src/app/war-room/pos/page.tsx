@@ -10,7 +10,7 @@ export default async function PosServerPage() {
     where: { paymentStatus: 'UNPAID' },
     orderBy: { createdAt: 'desc' },
     include: {
-      user: { select: { id: true, phone: true } },
+      user: { select: { id: true, phone: true, loyaltyPoints: true } },
       items: { include: { product: { select: { name: true, price: true } } } }
     }
   });

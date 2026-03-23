@@ -12,7 +12,8 @@ import {
   CalendarIcon,
   Filter,
   MapPin,
-  PieChart
+  PieChart,
+  X
 } from 'lucide-react';
 import Link from 'next/link';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
@@ -20,15 +21,21 @@ import { startOfDay, endOfDay, parseISO } from 'date-fns';
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  searchParams: { startDate?: string; endDate?: string };
+  searchParams: { 
+    startDate?: string; 
+    endDate?: string;
+    status?: string;
+    payment?: string;
+    type?: string;
+  };
 }
 
 export default async function WarRoomPage({ searchParams }: Props) {
-  // 1. Gestion des dates pour le filtrage
+  // 1. Gestion des dates pour la requête globale
   const start = searchParams.startDate ? startOfDay(parseISO(searchParams.startDate)) : startOfDay(new Date());
   const end = searchParams.endDate ? endOfDay(parseISO(searchParams.endDate)) : endOfDay(new Date());
 
-  // 2. Récupération des données ultra-optimisée
+  // 2. Récupération des données ultra-optimisée pour les KPIs
   const [orders, lowStockProducts] = await prisma.$transaction([
     prisma.order.findMany({
       where: { 
@@ -45,7 +52,7 @@ export default async function WarRoomPage({ searchParams }: Props) {
     })
   ]);
 
-  // 3. Calcul de la Business Intelligence (BI)
+  // 3. Calcul de la Business Intelligence (BI) - Reste intact malgré les filtres du tableau
   const revenue = orders
     .filter(o => o.status === 'COMPLETED' && o.paymentStatus === 'PAID')
     .reduce((sum, order) => sum + order.totalAmount, 0);
@@ -53,9 +60,20 @@ export default async function WarRoomPage({ searchParams }: Props) {
   const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
   const completedOrders = orders.filter(o => o.status === 'COMPLETED').length;
   
-  // Nouvelles métriques : Canal de vente
   const deliveryOrders = orders.filter(o => o.orderType === 'DELIVERY').length;
   const takeawayOrders = orders.filter(o => o.orderType === 'TAKEAWAY').length;
+
+  // 4. Filtrage dynamique pour le tableau (En mémoire pour ne pas casser la BI)
+  let filteredTableOrders = orders;
+  if (searchParams.status) {
+    filteredTableOrders = filteredTableOrders.filter(o => o.status === searchParams.status);
+  }
+  if (searchParams.payment) {
+    filteredTableOrders = filteredTableOrders.filter(o => o.paymentStatus === searchParams.payment);
+  }
+  if (searchParams.type) {
+    filteredTableOrders = filteredTableOrders.filter(o => o.orderType === searchParams.type);
+  }
 
   return (
     <main className="min-h-screen bg-slate-950 p-6 md:p-10 text-white">
@@ -137,7 +155,7 @@ export default async function WarRoomPage({ searchParams }: Props) {
         </div>
       )}
 
-      {/* KPI CARDS (Dashboard 4 Colonnes) */}
+      {/* KPI CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
         <Card className="bg-slate-900 border-white/10 shadow-2xl relative overflow-hidden group hover:border-primary/50 transition-colors">
           <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
@@ -196,23 +214,64 @@ export default async function WarRoomPage({ searchParams }: Props) {
         </Card>
       </div>
 
-      {/* ACTIVITÉ RÉCENTE OPTIMISÉE */}
+      {/* ACTIVITÉ RÉCENTE (AVEC NOUVEAUX FILTRES) */}
       <Card className="bg-slate-900 border-white/10 shadow-2xl overflow-hidden">
-        <CardHeader className="border-b border-white/5 bg-slate-800/30 py-6 px-8">
-          <div className="flex items-center justify-between">
+        <CardHeader className="border-b border-white/5 bg-slate-800/30 py-6 px-8 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="flex items-center gap-3">
             <CardTitle className="text-xl font-black text-white uppercase tracking-tight">Flux des commandes</CardTitle>
             <CalendarIcon className="h-5 w-5 text-slate-500" />
           </div>
+
+          {/* NOUVEAU : BARRE DE FILTRES DU TABLEAU */}
+          <form method="GET" className="flex flex-wrap items-center gap-3">
+            {/* Conservation des dates actuelles dans l'URL */}
+            {searchParams.startDate && <input type="hidden" name="startDate" value={searchParams.startDate} />}
+            {searchParams.endDate && <input type="hidden" name="endDate" value={searchParams.endDate} />}
+
+            <select name="type" defaultValue={searchParams.type || ""} className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-primary uppercase tracking-widest appearance-none">
+              <option value="">🛒 Tous types</option>
+              <option value="TAKEAWAY">À Emporter</option>
+              <option value="DELIVERY">Livraison</option>
+            </select>
+
+            <select name="payment" defaultValue={searchParams.payment || ""} className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-primary uppercase tracking-widest appearance-none">
+              <option value="">💰 Tous paiements</option>
+              <option value="PAID">Payé</option>
+              <option value="UNPAID">Non Payé</option>
+            </select>
+
+            <select name="status" defaultValue={searchParams.status || ""} className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-primary uppercase tracking-widest appearance-none">
+              <option value="">⏳ Tous statuts</option>
+              <option value="PENDING">En attente</option>
+              <option value="COMPLETED">Terminé</option>
+            </select>
+
+            <button type="submit" className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-lg">
+              Filtrer
+            </button>
+            
+            {/* Bouton Reset uniquement si un filtre tableau est actif */}
+            {(searchParams.type || searchParams.payment || searchParams.status) && (
+              <Link 
+                href={`/war-room?${searchParams.startDate ? `startDate=${searchParams.startDate}&` : ''}${searchParams.endDate ? `endDate=${searchParams.endDate}` : ''}`} 
+                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2.5 rounded-xl transition-colors"
+                title="Effacer les filtres"
+              >
+                <X className="w-4 h-4" />
+              </Link>
+            )}
+          </form>
         </CardHeader>
+        
         <CardContent className="p-0">
-          {orders.length === 0 ? (
+          {filteredTableOrders.length === 0 ? (
             <div className="p-20 text-center flex flex-col items-center gap-4">
               <ShoppingBag className="h-16 w-16 text-slate-800" />
-              <p className="text-slate-500 font-bold uppercase text-sm tracking-widest">Aucune activité détectée</p>
+              <p className="text-slate-500 font-bold uppercase text-sm tracking-widest">Aucune commande pour ces critères</p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300">
+              <table className="w-full text-left text-sm text-slate-300 whitespace-nowrap">
                 <thead className="bg-slate-950/80 text-[10px] uppercase font-black text-slate-500 tracking-widest">
                   <tr>
                     <th className="px-8 py-5">Commande</th>
@@ -225,7 +284,7 @@ export default async function WarRoomPage({ searchParams }: Props) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5 font-medium">
-                  {orders.slice(0, 15).map((order) => (
+                  {filteredTableOrders.slice(0, 15).map((order) => (
                     <tr key={order.id} className="hover:bg-white/[0.03] transition-colors group">
                       <td className="px-8 py-5 text-white font-black">#{order.id.slice(-6).toUpperCase()}</td>
                       <td className="px-8 py-5">
@@ -263,10 +322,10 @@ export default async function WarRoomPage({ searchParams }: Props) {
                   ))}
                 </tbody>
               </table>
-              {orders.length > 15 && (
+              {filteredTableOrders.length > 15 && (
                 <div className="p-6 bg-slate-950/50 text-center border-t border-white/5">
                   <Link href="/war-room/orders" className="text-xs font-black text-primary hover:text-white transition-colors uppercase tracking-widest inline-flex items-center gap-2">
-                    Voir les {orders.length - 15} autres commandes &rarr;
+                    Voir les {filteredTableOrders.length - 15} autres commandes filtrées &rarr;
                   </Link>
                 </div>
               )}

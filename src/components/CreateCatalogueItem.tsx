@@ -16,8 +16,11 @@ export function CreateCatalogueItem({ categories }: { categories: Category[] }) 
   const [error, setError] = useState('');
 
   const [catName, setCatName] = useState('');
+  
+  // États Produit
   const [prodName, setProdName] = useState('');
   const [prodPrice, setProdPrice] = useState('');
+  const [prodDescription, setProdDescription] = useState(''); // NOUVEL ÉTAT
   const [prodCategoryId, setProdCategoryId] = useState(categories[0]?.id || '');
 
   const handleCreateCategory = (e: React.FormEvent) => {
@@ -41,11 +44,13 @@ export function CreateCatalogueItem({ categories }: { categories: Category[] }) 
       const result = await createProduct({
         name: prodName,
         price: Number(prodPrice),
+        description: prodDescription, // ENVOI AU SERVEUR
         categoryId: prodCategoryId
       });
       if (result.success) {
         setProdName('');
         setProdPrice('');
+        setProdDescription('');
         setActiveModal('NONE');
       } else {
         setError(result.error || 'Erreur inconnue');
@@ -98,7 +103,7 @@ export function CreateCatalogueItem({ categories }: { categories: Category[] }) 
 
       {activeModal === 'PRODUCT' && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-white/10 w-full max-w-md rounded-3xl p-8 relative shadow-2xl">
+          <div className="bg-slate-900 border border-white/10 w-full max-w-lg rounded-3xl p-8 relative shadow-2xl">
             <button onClick={() => setActiveModal('NONE')} className="absolute right-6 top-6 text-slate-500 hover:text-white"><X /></button>
             <h3 className="text-2xl font-black text-white mb-6 flex items-center gap-2"><PackagePlus className="text-primary" /> Créer Produit</h3>
             
@@ -111,6 +116,17 @@ export function CreateCatalogueItem({ categories }: { categories: Category[] }) 
                   placeholder="Ex: Tacos Double"
                 />
               </div>
+
+              {/* CHAMP DESCRIPTION AJOUTÉ */}
+              <div>
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Description (Ingrédients)</label>
+                <textarea 
+                  value={prodDescription} onChange={e => setProdDescription(e.target.value)}
+                  className="w-full bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-white focus:border-primary outline-none min-h-[80px]"
+                  placeholder="Ex: Pain artisanal, double steak, sauce secrète..."
+                />
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2 block">Prix (FCFA)</label>

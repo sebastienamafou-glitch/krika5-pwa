@@ -1,7 +1,7 @@
 // src/app/hub/page.tsx
 import Link from 'next/link';
 import Image from 'next/image';
-import { Store, ChefHat, Settings, Utensils, LogOut } from 'lucide-react';
+import { Store, ChefHat, Settings, Utensils, LogOut, Bike, BookOpen } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { jwtVerify } from 'jose';
@@ -49,7 +49,21 @@ export default async function HubPage() {
       href: "/war-room/catalogue",
       icon: <Utensils className="w-12 h-12 mb-4 text-blue-400" />,
       color: "hover:border-blue-500/50 hover:bg-blue-500/10",
-    }
+    },
+    {
+      title: "Expédition (Livreur)",
+      description: "Courses en attente et GPS",
+      href: "/livraison",
+      icon: <Bike className="w-12 h-12 mb-4 text-purple-400" />,
+      color: "hover:border-purple-500/50 hover:bg-purple-500/10",
+    },
+    {
+      title: "Menu Client",
+      description: "Aperçu de la carte en temps réel",
+      href: "/carte",
+      icon: <BookOpen className="w-12 h-12 mb-4 text-cyan-400" />,
+      color: "hover:border-cyan-500/50 hover:bg-cyan-500/10",
+    },
   ];
 
   return (
@@ -70,21 +84,14 @@ export default async function HubPage() {
 
       {/* SECTION LOGO + TITRE */}
       <header className="mb-12 text-center flex flex-col items-center mt-12 md:mt-0">
-        {/* Format rectangulaire (w-48 h-20) pour épouser la forme naturelle du logo */}
-        <div className="relative w-48 h-20 mb-6 p-1 bg-gradient-to-tr from-primary to-orange-500 rounded-[2rem] shadow-2xl shadow-primary/20">
-            <div className="bg-slate-950 w-full h-full rounded-[1.7rem] relative flex items-center justify-center overflow-hidden p-3">
-                <div className="relative w-full h-full">
-                    <Image 
-                        src="/logo.png" 
-                        alt={`Logo ${BRAND_NAME}`} 
-                        fill
-                        className="object-contain"
-                        sizes="(max-width: 768px) 100vw, 33vw"
-                        priority
-                    />
-                </div>
-            </div>
-        </div>
+        <Image 
+          src="/icon-512x512.png" 
+          alt={`Logo ${BRAND_NAME}`} 
+          width={140} 
+          height={140} 
+          className="mb-8 drop-shadow-2xl rounded-3xl"
+          priority
+        />
         
         <h1 className="text-4xl font-black text-white tracking-tight">
           Portail <span dangerouslySetInnerHTML={{ __html: BRAND_NAME }} />

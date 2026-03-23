@@ -38,7 +38,7 @@ export async function createCategory(name: string) {
   }
 }
 
-export async function createProduct(data: { name: string, price: number, categoryId: string }) {
+export async function createProduct(data: { name: string, price: number, categoryId: string, description?: string }) {
   if (!data.name.trim() || data.price < 0 || !data.categoryId) {
     return { success: false, error: "Données invalides." };
   }
@@ -47,6 +47,7 @@ export async function createProduct(data: { name: string, price: number, categor
     await prisma.product.create({
       data: {
         name: data.name.trim(),
+        description: data.description?.trim() || null, // INTÉGRATION DE LA DESCRIPTION
         price: data.price,
         categoryId: data.categoryId,
         stock: 50, 
@@ -55,8 +56,46 @@ export async function createProduct(data: { name: string, price: number, categor
     });
     
     revalidatePath('/war-room/catalogue');
+    revalidatePath('/'); // Invalide aussi la vitrine client pour afficher le nouveau plat
     return { success: true };
   } catch {
     return { success: false, error: "Erreur lors de la création du produit." };
   }
 }
+
+export async function updateProduct(id: string, data: { name: string, price: number, categoryId: string, description?: string }) {
+  if (!data.name.trim() || data.price < 0 || !data.categoryId) return { success: false, error: "Données invalides." };
+  
+  try {
+    await prisma.product.update({
+      where: { id },
+      data: {
+        name: data.name.trim(),
+        description: data.description?.trim() || null,
+        price: data.price,
+        categoryId: data.categoryId,
+      }
+    });
+    revalidatePath('/war-room/catalogue');
+    revalidatePath('/carte'); // Mise à jour de la vitrine client
+    return { success: true };
+  } catch {
+    return { success: false, error: "Erreur lors de la mise à jour." };
+  }
+}
+
+export async function deleteProduct(id: string) {
+  try {
+    await prisma.product.delete({ where: { id } });
+    revalidatePath('/war-room/catalogue');
+    revalidatePath('/carte');
+    return { success: true };
+  } catch {
+    // Si la suppression échoue, c'est que le produit est lié à une commande existante (Contrainte de clé étrangère)
+    return { 
+      success: false, 
+      error: "Ce produit figure déjà dans l'historique des commandes. Veuillez simplement le désactiver." 
+    };
+  }
+}
+

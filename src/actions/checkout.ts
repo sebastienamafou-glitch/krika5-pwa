@@ -23,6 +23,8 @@ export type CheckoutPayload = {
   customerId?: string;
   orderType: 'TAKEAWAY' | 'DELIVERY'; // Obligatoire pour savoir comment traiter la commande
   deliveryAddress?: string;           // Optionnel, requis uniquement si DELIVERY
+  deliveryLat?: number; // NOUVEAU
+  deliveryLng?: number; // NOUVEAU
 };
 
 export async function submitOrder(payload: CheckoutPayload) {
@@ -85,6 +87,8 @@ export async function submitOrder(payload: CheckoutPayload) {
           paymentMethod: 'CASH',
           orderType: payload.orderType, // Enregistrement du type (TAKEAWAY / DELIVERY)
           deliveryAddress: payload.orderType === 'DELIVERY' ? payload.deliveryAddress : null,
+          deliveryLat: payload.orderType === 'DELIVERY' ? payload.deliveryLat : null, // NOUVEAU
+          deliveryLng: payload.orderType === 'DELIVERY' ? payload.deliveryLng : null, // NOUVEAU
           items: {
             create: payload.items.map((item) => ({
               productId: item.id,

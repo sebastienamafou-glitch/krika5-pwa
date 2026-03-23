@@ -5,8 +5,8 @@ import { jwtVerify } from 'jose';
 
 const SECRET_KEY = new TextEncoder().encode(process.env.JWT_SECRET || 'krika5-super-secret-key-prod');
 
-// Routes nécessitant une authentification
-const protectedRoutes = ['/admin', '/war-room', '/kds', '/hub'];
+// J'ai gardé '/livraison' pour qu'il bénéficie du même "passage secret" que '/war-room'
+const protectedRoutes = ['/admin', '/war-room', '/kds', '/hub', '/livraison'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -25,12 +25,13 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // A. Redirection intelligente : Employé déjà connecté -> Envoi direct sur le Hub
+  // A. Redirection intelligente (ANCIENNE CONFIGURATION RESTAURÉE) : 
+  // Employé déjà connecté -> Envoi direct sur le Hub, interdiction de voir l'accueil (/) ou le login.
   if (isValidToken && (pathname === '/' || pathname === '/login')) {
     return NextResponse.redirect(new URL('/hub', request.url));
   }
 
-  // B. Protection standard : Non connecté sur une route protégée -> Envoi au Login
+  // B. Protection standard : Non connecté sur une route protégée -> Envoi au Login (Le passage secret)
   const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
   if (isProtectedRoute && !isValidToken) {
     return NextResponse.redirect(new URL('/login', request.url));

@@ -3,6 +3,7 @@
 
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { pusherServer } from '@/lib/pusher'; // NOUVEAU : Import de Pusher
 
 export async function markOrderAsReady(orderId: string) {
   try {
@@ -11,7 +12,11 @@ export async function markOrderAsReady(orderId: string) {
       data: { status: 'COMPLETED' } 
     });
 
-    // Invalidation du cache pour mettre à jour l'écran de la cuisine instantanément
+    // NOUVEAU : On prévient le reste du restaurant que c'est prêt
+    await pusherServer.trigger('kds-channel', 'order-ready', {
+      orderId: orderId,
+    });
+
     revalidatePath('/kds');
     
     return { success: true };

@@ -5,26 +5,26 @@ import PosClient from './PosClient';
 export const dynamic = 'force-dynamic';
 
 export default async function PosServerPage() {
+  // 1. Récupération des commandes à encaisser
   const pendingOrders = await prisma.order.findMany({
-    where: {
-      paymentStatus: 'UNPAID', 
-    },
-    orderBy: { 
-      createdAt: 'desc' 
-    },
+    where: { paymentStatus: 'UNPAID' },
+    orderBy: { createdAt: 'desc' },
     include: {
-      user: {
-        select: { id: true, phone: true }
-      },
-      items: {
-        include: { 
-          product: {
-            select: { name: true, price: true }
-          }
-        }
+      user: { select: { id: true, phone: true } },
+      items: { include: { product: { select: { name: true, price: true } } } }
+    }
+  });
+
+  // 2. Récupération du catalogue pour la grille de caisse
+  const categories = await prisma.category.findMany({
+    orderBy: { order: 'asc' },
+    include: {
+      products: {
+        where: { isAvailable: true },
+        orderBy: { name: 'asc' }
       }
     }
   });
 
-  return <PosClient orders={pendingOrders} />;
+  return <PosClient orders={pendingOrders} categories={categories} />;
 }

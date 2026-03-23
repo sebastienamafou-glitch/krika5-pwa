@@ -1,13 +1,13 @@
 // src/actions/pos.ts
 'use server';
-import { Prisma } from '@prisma/client'; // Ajout de l'import Prisma
+
+import { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { revalidatePath } from 'next/cache';
+import { pusherServer } from '@/lib/pusher'; // NOUVEAU : Import de Pusher
 
 export async function processPayment(orderId: string, paymentMethod: string) {
   try {
-    // Sécurité : on force la condition 'paymentStatus: UNPAID'
-    // Cela empêche le double-encaissement (ex: double clic du caissier)
     await prisma.order.update({
       where: { 
         id: orderId,
@@ -15,11 +15,15 @@ export async function processPayment(orderId: string, paymentMethod: string) {
       },
       data: {
         paymentStatus: 'PAID',
-        paymentMethod: paymentMethod, // ex: "ESPECES", "WAVE_MANUEL"
+        paymentMethod: paymentMethod,
       },
     });
     
-    // Rafraîchissement des écrans
+    // NOUVEAU : On fait sonner la cloche en cuisine !
+    await pusherServer.trigger('kds-channel', 'new-order', {
+      orderId: orderId,
+    });
+    
     revalidatePath('/war-room/pos');
     revalidatePath('/war-room');
     
@@ -27,7 +31,6 @@ export async function processPayment(orderId: string, paymentMethod: string) {
   } catch (error) {
     console.error("Erreur d'encaissement:", error);
     
-    // Utilisation du Type Guard Prisma
     if (error instanceof Prisma.PrismaClientKnownRequestError) {
       if (error.code === 'P2025') {
         return { success: false, error: "Commande introuvable ou déjà encaissée." };

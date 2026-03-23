@@ -75,3 +75,15 @@
     background: white !important;
   }
 }
+@layer utilities {
+  /* Masquer la scrollbar pour Chrome, Safari et Opera */
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Masquer la scrollbar pour IE, Edge et Firefox */
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+}

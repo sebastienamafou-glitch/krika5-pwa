@@ -4,7 +4,7 @@
 import { useState, useTransition, useEffect } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger, SheetFooter } from "@/components/ui/sheet";
 import { useCartStore } from "@/store/useCartStore";
-import { Trash2, Loader2, WifiOff, QrCode, MapPin, ShoppingBag, CheckCircle2 } from "lucide-react";
+import { Trash2, Loader2, WifiOff, QrCode, MapPin, ShoppingBag, CheckCircle2, Navigation } from "lucide-react";
 import { usePathname } from "next/navigation"; 
 import { Button } from "@/components/ui/button";
 import { submitOrder } from "@/actions/checkout";
@@ -30,15 +30,16 @@ export function CartSheet() {
   const [orderType, setOrderType] = useState<'TAKEAWAY' | 'DELIVERY'>('TAKEAWAY');
   const [address, setAddress] = useState("");
   
+  // États de géolocalisation
+  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [isLocating, setIsLocating] = useState(false);
+  
   const [isPending, startTransition] = useTransition();
   const [isOpen, setIsOpen] = useState(false);
-  
-  // NOUVEAU : État pour gérer l'écran de succès interne
   const [successOrder, setSuccessOrder] = useState<string | null>(null);
   
   const isPosInterface = pathname.startsWith('/war-room/pos'); 
   const totalItems = items.reduce((acc, item) => acc + item.quantity, 0);
-  
   const finalTotal = orderType === 'DELIVERY' ? getTotal() + DELIVERY_FEE : getTotal();
 
   useEffect(() => {
@@ -54,6 +55,8 @@ export function CartSheet() {
             customerId: order.customerId,
             orderType: order.orderType || 'TAKEAWAY',
             deliveryAddress: order.deliveryAddress,
+            deliveryLat: order.deliveryLat,
+            deliveryLng: order.deliveryLng,
           });
 
           if (result.success) {
@@ -70,6 +73,30 @@ export function CartSheet() {
     return () => window.removeEventListener('online', syncOrders);
   }, [pendingOrders, dequeueOrder]);
 
+  const handleGeolocation = () => {
+    setIsLocating(true);
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          });
+          setIsLocating(false);
+          if (!address) setAddress("Position GPS capturée via le navigateur");
+        },
+        () => {
+          setIsLocating(false);
+          alert("Impossible d'obtenir votre position. Veuillez vérifier vos permissions GPS.");
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      setIsLocating(false);
+      alert("La géolocalisation n'est pas supportée par votre appareil.");
+    }
+  };
+
   const handleCheckout = () => {
     if (!isPosInterface && phone.length < 8) return alert("Veuillez saisir votre numéro pour la commande.");
     if (isPosInterface && !customerId && phone.length < 8) return alert("Saisissez un numéro valide ou scannez un client.");
@@ -83,11 +110,13 @@ export function CartSheet() {
         customerId: customerId || undefined,
         orderType,
         deliveryAddress: orderType === 'DELIVERY' ? address : undefined,
+        deliveryLat: orderType === 'DELIVERY' ? location?.lat : undefined,
+        deliveryLng: orderType === 'DELIVERY' ? location?.lng : undefined,
       });
       clearCart(); 
       setPhone("");
       setAddress("");
-      // Écran de succès personnalisé pour le mode hors-ligne
+      setLocation(null);
       setSuccessOrder("HORS-LIGNE");
       return;
     }
@@ -100,13 +129,15 @@ export function CartSheet() {
         customerId: customerId || undefined, 
         orderType,
         deliveryAddress: orderType === 'DELIVERY' ? address : undefined,
+        deliveryLat: orderType === 'DELIVERY' ? location?.lat : undefined,
+        deliveryLng: orderType === 'DELIVERY' ? location?.lng : undefined,
       });
 
       if (result.success) {
         clearCart(); 
         setPhone("");
         setAddress("");
-        // On affiche l'écran de succès avec le vrai numéro de commande
+        setLocation(null);
         setSuccessOrder(result.orderId?.split('-')[0].toUpperCase() || "OK");
       } else {
         alert(result.error || "Une erreur est survenue.");
@@ -114,11 +145,10 @@ export function CartSheet() {
     });
   };
 
-  // Réinitialiser le succès quand on ferme le panier
   const handleOpenChange = (open: boolean) => {
     setIsOpen(open);
     if (!open) {
-      setTimeout(() => setSuccessOrder(null), 300); // Laisse le temps à l'animation de fermeture
+      setTimeout(() => setSuccessOrder(null), 300); 
     }
   };
 
@@ -142,7 +172,6 @@ export function CartSheet() {
       
       <SheetContent className="flex w-full flex-col border-l border-white/5 bg-card text-foreground sm:max-w-md">
         
-        {/* === ÉCRAN DE SUCCÈS === */}
         {successOrder ? (
           <div className="flex flex-col items-center justify-center h-full text-center p-6 space-y-6 animate-in fade-in zoom-in duration-300">
             <div className="w-24 h-24 bg-emerald-500/10 rounded-full flex items-center justify-center mb-4">
@@ -168,7 +197,6 @@ export function CartSheet() {
             </Button>
           </div>
         ) : (
-          /* === ÉCRAN DU PANIER CLASSIQUE === */
           <>
             <SheetHeader className="border-b border-white/5 pb-4">
               <SheetTitle className="text-xl font-bold text-white flex items-center justify-between">
@@ -247,6 +275,16 @@ export function CartSheet() {
                         className="w-full rounded-xl border border-purple-500/30 bg-purple-950/20 px-4 py-3 text-white placeholder-purple-700/50 focus:border-purple-500 focus:outline-none min-h-[80px]"
                         disabled={isPending}
                       />
+                      
+                      <button
+                        type="button"
+                        onClick={handleGeolocation}
+                        disabled={isLocating}
+                        className="w-full mt-2 flex items-center justify-center gap-2 py-3 bg-purple-900/40 hover:bg-purple-800/50 border border-purple-500/30 text-purple-300 rounded-xl font-bold transition-all text-xs uppercase tracking-widest"
+                      >
+                        {isLocating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+                        {location ? "Position GPS capturée ✓" : "Me géolocaliser (GPS)"}
+                      </button>
                     </div>
                   )}
 

@@ -18,7 +18,9 @@ export type PendingOrder = {
   customerId?: string; 
   // --- LES NOUVEAUX CHAMPS MANQUANTS SONT LÀ ---
   orderType?: 'TAKEAWAY' | 'DELIVERY'; 
-  deliveryAddress?: string;            
+  deliveryAddress?: string;   
+  deliveryLat?: number;      // NOUVEAU
+  deliveryLng?: number;      // NOUVEAU         
 };
 
 interface CartStore {

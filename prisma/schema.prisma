@@ -39,6 +39,10 @@ model Category {
   slug     String    @unique // ex: "boissons"
   order    Int       @default(0) // Pour trier l'affichage dans le header
   products Product[]
+
+  // CORRECTION : Champs d'audit obligatoires
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // 3. Mise à jour du Produit : Stock et Catégorie
@@ -46,7 +50,7 @@ model Product {
   id          String      @id @default(cuid())
   name        String
   description String?
-  price       Float
+  price       Int // CORRECTION : Int pour le FCFA
   imageUrl    String?
   categoryId  String
   category    Category    @relation(fields: [categoryId], references: [id])
@@ -55,6 +59,9 @@ model Product {
   orderItems  OrderItem[]
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
+
+  // OPTIMISATION : Index sur la clé étrangère
+  @@index([categoryId])
 }
 
 // Les commandes restent globalement inchangées pour l'instant
@@ -75,7 +82,7 @@ model Order {
   id              String        @id @default(cuid())
   userId          String?
   user            User?         @relation(fields: [userId], references: [id])
-  totalAmount     Float
+  totalAmount     Int // CORRECTION : Int pour le FCFA
   status          OrderStatus   @default(PENDING)
   paymentMethod   String
   items           OrderItem[]
@@ -84,8 +91,11 @@ model Order {
   paymentStatus   PaymentStatus @default(UNPAID)
   orderType       OrderType     @default(TAKEAWAY)
   deliveryAddress String?
-  deliveryLat     Float? // NOUVEAU : Latitude
-  deliveryLng     Float? // NOUVEAU : Longitude       
+  deliveryLat     Float? // NOUVEAU : Latitude (Float est correct pour le GPS)
+  deliveryLng     Float? // NOUVEAU : Longitude (Float est correct pour le GPS)
+
+  // OPTIMISATION : Index sur la clé étrangère
+  @@index([userId])
 }
 
 model OrderItem {
@@ -95,5 +105,9 @@ model OrderItem {
   productId String
   product   Product @relation(fields: [productId], references: [id])
   quantity  Int
-  unitPrice Float
+  unitPrice Int // CORRECTION : Int pour le FCFA
+
+  // OPTIMISATION : Index sur les clés étrangères
+  @@index([orderId])
+  @@index([productId])
 }

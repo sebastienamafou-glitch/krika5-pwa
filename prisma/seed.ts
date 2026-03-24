@@ -1,18 +1,18 @@
 // prisma/seed.ts
 import { PrismaClient, Role } from '@prisma/client';
-import bcrypt from 'bcryptjs'; // Importation de bcrypt
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('⏳ Sécurisation et peuplement de la base...');
 
-  const hashedPassword = await bcrypt.hash('krika5', 12); // Hachage avec un sel de 12
+  const hashedPassword = await bcrypt.hash('krika5', 12);
 
   // 1. Création de l'Administrateur avec mot de passe haché
   await prisma.user.upsert({
     where: { phone: 'admin' },
-    update: { password: hashedPassword }, // Mise à jour si déjà existant
+    update: { password: hashedPassword },
     create: {
       phone: 'admin',
       password: hashedPassword,
@@ -20,16 +20,16 @@ async function main() {
     },
   });
 
-  // 2. Création des Catégories
+  // 2. Création des Catégories (Correction de la contrainte Null P2011)
   const catMenu = await prisma.category.upsert({
     where: { slug: 'menus' },
-    update: {},
+    update: { name: 'Menus KRIKA\'5', order: 1 },
     create: { name: 'Menus KRIKA\'5', slug: 'menus', order: 1 },
   });
 
   const catBoisson = await prisma.category.upsert({
     where: { slug: 'boissons' },
-    update: {},
+    update: { name: 'Boissons Fraîches', order: 2 },
     create: { name: 'Boissons Fraîches', slug: 'boissons', order: 2 },
   });
 
@@ -99,6 +99,9 @@ async function main() {
     await prisma.product.upsert({
       where: { id: product.id },
       update: {
+        name: product.name,
+        description: product.description,
+        price: product.price,
         categoryId: product.categoryId,
         stock: product.stock,
       },
@@ -112,7 +115,7 @@ async function main() {
 main()
   .catch((e) => {
     console.error('❌ Erreur lors du seeding:', e);
-    process.exit(1);
+    process.exit(1); // En cas d'erreur sans utilisation de la variable d'erreur, catch s'écrira simplement catch { ... } si on ne l'utilise pas, mais ici on l'affiche.
   })
   .finally(async () => {
     await prisma.$disconnect();

@@ -11,7 +11,6 @@ import {
   ShoppingBag, 
   CalendarIcon,
   Filter,
-  MapPin,
   PieChart,
   X
 } from 'lucide-react';
@@ -291,17 +290,12 @@ export default async function WarRoomPage({ searchParams }: Props) {
                         <span className="block text-slate-300">{new Date(order.createdAt).toLocaleDateString('fr-FR')}</span>
                         <span className="text-[10px] text-slate-500 font-bold">{new Date(order.createdAt).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</span>
                       </td>
-                      <td className="px-8 py-5">{order.user.phone}</td>
                       <td className="px-8 py-5">
-                        {order.orderType === 'DELIVERY' ? (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-black text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-md uppercase tracking-widest">
-                            <MapPin className="w-3 h-3" /> Liv
-                          </span>
+                        {order.user?.phone ? (
+                          order.user.phone
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 text-xs font-black text-slate-400 bg-slate-800 px-2.5 py-1 rounded-md uppercase tracking-widest">
-                            <ShoppingBag className="w-3 h-3" /> Emp
-                          </span>
-                        )}
+                      <span className="text-slate-500 italic text-xs">Anonyme</span>
+    )}
                       </td>
                       <td className="px-8 py-5 font-black text-white">{order.totalAmount.toLocaleString()} F</td>
                       <td className="px-8 py-5">

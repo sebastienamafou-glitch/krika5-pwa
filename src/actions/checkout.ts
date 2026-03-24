@@ -15,22 +15,21 @@ const pusher = new Pusher({
   useTLS: true,
 });
 
-// 1. Mise à jour du typage strict avec les champs de livraison
 export type CheckoutPayload = {
-  phone: string;
+  phone: string; // Accepte "" pour les clients anonymes
   items: { id: string; price: number; quantity: number }[];
   totalAmount: number;
   customerId?: string;
-  orderType: 'TAKEAWAY' | 'DELIVERY'; // Obligatoire pour savoir comment traiter la commande
-  deliveryAddress?: string;           // Optionnel, requis uniquement si DELIVERY
-  deliveryLat?: number; // NOUVEAU
-  deliveryLng?: number; // NOUVEAU
+  orderType: 'TAKEAWAY' | 'DELIVERY';
+  deliveryAddress?: string;
+  deliveryLat?: number;
+  deliveryLng?: number;
 };
 
 export async function submitOrder(payload: CheckoutPayload) {
-  // 2. Validation renforcée des données entrantes
-  if (!payload.phone || payload.items.length === 0) {
-    return { success: false, error: "Données de commande invalides." };
+  // 1. Validation assouplie : On vérifie juste le panier et l'adresse si livraison
+  if (payload.items.length === 0) {
+    return { success: false, error: "Données de commande invalides (panier vide)." };
   }
 
   if (payload.orderType === 'DELIVERY' && (!payload.deliveryAddress || payload.deliveryAddress.trim().length < 5)) {
@@ -39,32 +38,44 @@ export async function submitOrder(payload: CheckoutPayload) {
 
   try {
     const orderResult = await prisma.$transaction(async (tx) => {
-      // A. Identification ou création du client
-      const user = payload.customerId 
-        ? await tx.user.findUniqueOrThrow({ where: { id: payload.customerId } })
-        : await tx.user.upsert({
-            where: { phone: payload.phone },
-            update: {}, 
-            create: { phone: payload.phone },
-          });
-
       let finalAmount = payload.totalAmount;
-      
-      // B. Gestion de la fidélité (10ème commande offerte)
-      const pointsUpdate: Prisma.IntFieldUpdateOperationsInput = user.loyaltyPoints >= 10 
-        ? { decrement: 10 } 
-        : { increment: 1 };
+      let targetUserId: string | null = null;
 
-      if (user.loyaltyPoints >= 10) {
-        finalAmount = 0; 
+      // 2. Logique Client & Fidélité (Bypass si anonyme)
+      // Si on a un customerId explicite (Scan QR)
+      if (payload.customerId) {
+        const user = await tx.user.findUniqueOrThrow({ where: { id: payload.customerId } });
+        targetUserId = user.id;
+      } 
+      // Si on a un numéro tapé manuellement (Tél >= 8 chars)
+      else if (payload.phone && payload.phone.length >= 8) {
+        const user = await tx.user.upsert({
+          where: { phone: payload.phone },
+          update: {}, 
+          create: { phone: payload.phone },
+        });
+        targetUserId = user.id;
       }
 
-      await tx.user.update({
-        where: { id: user.id },
-        data: { loyaltyPoints: pointsUpdate }
-      });
+      // 3. Gestion de la fidélité UNIQUEMENT si le client est identifié
+      if (targetUserId) {
+        const user = await tx.user.findUniqueOrThrow({ where: { id: targetUserId } });
+        
+        if (user.loyaltyPoints >= 10) {
+          finalAmount = 0; 
+          await tx.user.update({
+            where: { id: targetUserId },
+            data: { loyaltyPoints: { decrement: 10 } }
+          });
+        } else {
+          await tx.user.update({
+            where: { id: targetUserId },
+            data: { loyaltyPoints: { increment: 1 } }
+          });
+        }
+      }
 
-      // C. Décrémentation stricte des stocks
+      // 4. Décrémentation stricte des stocks
       for (const item of payload.items) {
         await tx.product.update({
           where: { 
@@ -78,17 +89,17 @@ export async function submitOrder(payload: CheckoutPayload) {
         });
       }
 
-      // D. Création de la commande avec le type et l'adresse
+      // 5. Création de la commande avec ou sans userId
       const order = await tx.order.create({
         data: {
-          userId: user.id,
+          userId: targetUserId, // Sera null si client anonyme
           totalAmount: finalAmount,
           status: 'PENDING',
           paymentMethod: 'CASH',
-          orderType: payload.orderType, // Enregistrement du type (TAKEAWAY / DELIVERY)
+          orderType: payload.orderType,
           deliveryAddress: payload.orderType === 'DELIVERY' ? payload.deliveryAddress : null,
-          deliveryLat: payload.orderType === 'DELIVERY' ? payload.deliveryLat : null, // NOUVEAU
-          deliveryLng: payload.orderType === 'DELIVERY' ? payload.deliveryLng : null, // NOUVEAU
+          deliveryLat: payload.orderType === 'DELIVERY' ? payload.deliveryLat : null,
+          deliveryLng: payload.orderType === 'DELIVERY' ? payload.deliveryLng : null,
           items: {
             create: payload.items.map((item) => ({
               productId: item.id,
@@ -102,7 +113,7 @@ export async function submitOrder(payload: CheckoutPayload) {
       return order;
     });
 
-    // 3. Notification temps réel à la cuisine (KDS)
+    // 6. Notification temps réel à la cuisine (KDS)
     try {
       await pusher.trigger('kds-channel', 'new-order', {
         message: payload.orderType === 'DELIVERY' ? 'Nouvelle commande en LIVRAISON' : 'Nouvelle commande À EMPORTER',
@@ -112,7 +123,7 @@ export async function submitOrder(payload: CheckoutPayload) {
       // Erreur Pusher silencieuse pour ne pas bloquer la transaction
     }
 
-    // 4. Invalidation du cache pour rafraîchir les écrans
+    // 7. Invalidation du cache pour rafraîchir les écrans
     revalidatePath('/kds'); 
     revalidatePath('/war-room/catalogue'); 
 
@@ -121,7 +132,7 @@ export async function submitOrder(payload: CheckoutPayload) {
   } catch (error) {
     console.error("Erreur Checkout:", error);
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
-      return { success: false, error: "Stock insuffisant ou client introuvable." };
+      return { success: false, error: "Stock insuffisant ou erreur client." };
     }
     return { success: false, error: "Échec de l'enregistrement en base." };
   }

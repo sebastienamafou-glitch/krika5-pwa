@@ -53,11 +53,12 @@ export default async function OrderHistoryPage() {
                   <div className="text-white font-bold">{format(order.createdAt, 'dd MMMM', { locale: fr })}</div>
                   <div className="text-slate-500 text-xs">{format(order.createdAt, 'HH:mm')}</div>
                 </td>
-                <td className="p-4 text-slate-300 font-medium">{order.user.phone}</td>
-                <td className="p-4">
-                  <div className="text-xs text-slate-400 line-clamp-1">
-                    {order.items.map(i => `${i.quantity}x ${i.product.name}`).join(', ')}
-                  </div>
+                <td className="p-4 text-slate-300 font-medium">
+                  {order.user?.phone ? (
+                    order.user.phone
+                ) : (
+                  <span className="text-slate-500 italic text-xs">Anonyme (Comptoir)</span>
+     )}
                 </td>
                 <td className="p-4">
                   <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${

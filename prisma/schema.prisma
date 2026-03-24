@@ -24,7 +24,7 @@ enum PaymentStatus {
 model User {
   id            String   @id @default(cuid())
   phone         String   @unique
-  password      String?  // Hashé, requis uniquement pour ADMIN/STAFF
+  password      String? // Hashé, requis uniquement pour ADMIN/STAFF
   role          Role     @default(CUSTOMER)
   loyaltyPoints Int      @default(0) // Compteur sécurisé pour la fidélité
   orders        Order[]
@@ -34,11 +34,11 @@ model User {
 
 // 2. Nouvel axe : Catégories (Menus, Boissons, Desserts)
 model Category {
-  id        String    @id @default(cuid())
-  name      String    @unique // ex: "Boissons"
-  slug      String    @unique // ex: "boissons"
-  order     Int       @default(0) // Pour trier l'affichage dans le header
-  products  Product[]
+  id       String    @id @default(cuid())
+  name     String    @unique // ex: "Boissons"
+  slug     String    @unique // ex: "boissons"
+  order    Int       @default(0) // Pour trier l'affichage dans le header
+  products Product[]
 }
 
 // 3. Mise à jour du Produit : Stock et Catégorie
@@ -67,25 +67,25 @@ enum OrderStatus {
 }
 
 enum OrderType {
-  TAKEAWAY  // À emporter / Sur place
-  DELIVERY  // Livraison
+  TAKEAWAY // À emporter / Sur place
+  DELIVERY // Livraison
 }
 
 model Order {
-  id            String      @id @default(cuid())
-  userId        String
-  user          User        @relation(fields: [userId], references: [id])
-  totalAmount   Float
-  status        OrderStatus @default(PENDING)
-  paymentMethod String
-  items         OrderItem[]
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  paymentStatus PaymentStatus @default(UNPAID)
+  id              String        @id @default(cuid())
+  userId          String?
+  user            User?         @relation(fields: [userId], references: [id])
+  totalAmount     Float
+  status          OrderStatus   @default(PENDING)
+  paymentMethod   String
+  items           OrderItem[]
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  paymentStatus   PaymentStatus @default(UNPAID)
   orderType       OrderType     @default(TAKEAWAY)
   deliveryAddress String?
-  deliveryLat     Float?        // NOUVEAU : Latitude
-  deliveryLng     Float?        // NOUVEAU : Longitude       
+  deliveryLat     Float? // NOUVEAU : Latitude
+  deliveryLng     Float? // NOUVEAU : Longitude       
 }
 
 model OrderItem {

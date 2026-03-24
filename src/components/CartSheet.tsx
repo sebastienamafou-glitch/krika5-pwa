@@ -124,14 +124,15 @@ export function CartSheet() {
   };
 
   const handleCheckout = () => {
-    // Validation
+    // 1. Validation assouplie
+    // Le téléphone n'est plus obligatoire si on est sur l'interface Caisse (isPosInterface)
     if (!isPosInterface && phone.length < 8) return alert("Numéro requis.");
-    if (isPosInterface && !customerId && phone.length < 8) return alert("Numéro ou client requis.");
     if (orderType === 'DELIVERY' && address.trim().length < 5) return alert("Adresse précise requise.");
     
-    // Typage strict appliqué ici : On inclut le 'name' dans le mapping
+    // 2. Construction du Payload
     const payload: OrderPayload = {
-        phone: phone || "HORS-LIGNE",
+        // En caisse, si on n'a pas mis de numéro, on envoie une chaîne vide au lieu de bloquer
+        phone: phone.length >= 8 ? phone : "", 
         items: items.map(item => ({ id: item.id, name: item.name, price: item.price, quantity: item.quantity })),
         totalAmount: finalTotal, 
         customerId: customerId || undefined,
@@ -141,17 +142,16 @@ export function CartSheet() {
         deliveryLng: orderType === 'DELIVERY' ? location?.lng : undefined,
     };
 
-    // Mode Hors-Ligne
+    // 3. Mode Hors-Ligne
     if (!navigator.onLine) {
-      
+    
       enqueueOrder(payload);
       clearCart(); setPhone(""); setAddress(""); setLocation(null); setSuccessOrder("HORS-LIGNE");
       return;
     }
 
-    // Validation standard
+    // 4. Validation standard en ligne
     startTransition(async () => {
-      // Pour l'action serveur, le nom n'est pas utilisé, mais TypeScript valide l'objet
       const result = await submitOrder(payload);
 
       if (result.success && result.orderId) {
@@ -264,7 +264,12 @@ export function CartSheet() {
                     <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Votre numéro de téléphone" className="w-full rounded-xl border border-white/10 bg-slate-900 px-4 py-4 text-white font-bold text-center text-lg" disabled={isPending} />
                   )}
 
-                  <Button onClick={handleCheckout} disabled={isPending || (!phone && !customerId) || (orderType === 'DELIVERY' && address.trim().length < 5)} className={`h-14 w-full rounded-2xl text-lg font-black transition-all ${orderType === 'DELIVERY' ? 'bg-purple-600 hover:bg-purple-500' : 'bg-primary hover:bg-orange-600'}`}>
+                  <Button 
+                    onClick={handleCheckout} 
+                    // Modification : Le bouton n'est plus désactivé en caisse si le tel est vide
+                    disabled={isPending || (!isPosInterface && !phone && !customerId) || (orderType === 'DELIVERY' && address.trim().length < 5)} 
+                    className={`h-14 w-full rounded-2xl text-lg font-black transition-all ${orderType === 'DELIVERY' ? 'bg-purple-600 hover:bg-purple-500' : 'bg-primary hover:bg-orange-600'}`}
+                  >
                     {isPending ? <Loader2 className="h-6 w-6 animate-spin" /> : (isPosInterface ? "Encaisser" : "Commander")}
                   </Button>
                 </div>

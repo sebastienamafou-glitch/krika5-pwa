@@ -1,15 +1,18 @@
 // src/components/PusherListener.tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Pusher from 'pusher-js';
 
 export function PusherListener() {
   const router = useRouter();
+  // Utilisation d'une ref pour s'assurer qu'on n'instancie Pusher qu'une seule fois
+  const pusherInstance = useRef<Pusher | null>(null);
 
   useEffect(() => {
-    const pusherKey = process.env.NEXT_PUBLIC_PUSER_KEY; // Vérifie bien l'orthographe ici (PUSER vs PUSHER)
+    // CORRECTION DE LA FAUTE DE FRAPPE ICI
+    const pusherKey = process.env.NEXT_PUBLIC_PUSHER_KEY; 
     const pusherCluster = process.env.NEXT_PUBLIC_PUSHER_CLUSTER;
 
     if (!pusherKey || !pusherCluster) {
@@ -17,26 +20,36 @@ export function PusherListener() {
       return;
     }
 
-    // 1. Initialisation unique
-    const pusher = new Pusher(pusherKey, {
-      cluster: pusherCluster,
-    });
+    if (!pusherInstance.current) {
+      pusherInstance.current = new Pusher(pusherKey, {
+        cluster: pusherCluster,
+      });
 
-    const channel = pusher.subscribe('kds-channel');
+      const channel = pusherInstance.current.subscribe('kds-channel');
 
-    // 2. Écoute de l'événement
-    channel.bind('new-order', (data: { orderId: string }) => {
-      console.log('🔔 Nouvelle commande KDS :', data.orderId);
-      router.refresh(); // Mise à jour des données serveur
-    });
+      channel.bind('new-order', (data: { orderId: string }) => {
+        console.log('🔔 Nouvelle commande reçue sur le KDS :', data.orderId);
+        
+        // Jouer un petit son "ding"
+        try {
+          const audio = new Audio('/ding.mp3'); // Assure-toi d'avoir un fichier ding.mp3 dans /public
+          audio.play().catch(() => {}); // Le catch évite l'erreur si le navigateur bloque l'autoplay
+        } catch (e) {
+          // Ignorer si l'audio n'est pas supporté
+        }
 
-    // 3. Nettoyage (Cleanup) : Crucial pour éviter les connexions multiples
+        router.refresh(); 
+      });
+    }
+
     return () => {
-      channel.unbind_all();
-      channel.unsubscribe();
-      pusher.disconnect();
+      if (pusherInstance.current) {
+        pusherInstance.current.unsubscribe('kds-channel');
+        pusherInstance.current.disconnect();
+        pusherInstance.current = null;
+      }
     };
-  }, [router]); // Ne dépend que du router, s'exécute une seule fois au montage
+  }, [router]); 
 
   return null; 
 }

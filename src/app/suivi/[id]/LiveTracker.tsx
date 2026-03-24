@@ -4,9 +4,8 @@
 import { useEffect, useState } from 'react';
 import { pusherClient } from '@/lib/pusher';
 import { CheckCircle2, ChefHat, Clock, Flame } from 'lucide-react';
-
-// Activation des logs Pusher pour voir la connexion dans la console
 import Pusher from 'pusher-js';
+
 Pusher.logToConsole = true;
 
 interface TrackerProps {
@@ -26,9 +25,22 @@ export function LiveTracker({ orderId, initialStatus }: TrackerProps) {
       console.log("⚡ SIGNAL REÇU DU KDS :", data);
       setStatus(data.status);
       
-      // Buzzer
-      if (data.status === 'COMPLETED' && 'vibrate' in navigator) {
-        navigator.vibrate([200, 100, 500, 100, 200]); 
+      // Alerte Client : Vibreur + Sonnerie quand la commande est prête
+      if (data.status === 'COMPLETED') {
+        // 1. Vibreur
+        if ('vibrate' in navigator) {
+          navigator.vibrate([200, 100, 500, 100, 200]); 
+        }
+        
+        // 2. Alerte Sonore
+        try {
+          const audio = new Audio('/ding.mp3'); // Assure-toi d'avoir ce fichier dans /public
+          audio.play().catch(() => {
+            console.log("Lecture audio bloquée par le navigateur.");
+          });
+        } catch (e) {
+          // Ignorer si l'audio n'est pas supporté
+        }
       }
     });
 
@@ -36,7 +48,7 @@ export function LiveTracker({ orderId, initialStatus }: TrackerProps) {
       channel.unbind_all();
       pusherClient.unsubscribe(`order-${orderId}`);
     };
-  }, [orderId]); // J'ai retiré 'status' des dépendances pour éviter les micro-coupures
+  }, [orderId]); 
 
   const isPreparing = status === 'PREPARING' || status === 'COMPLETED';
   const isReady = status === 'COMPLETED';

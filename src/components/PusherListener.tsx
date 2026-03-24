@@ -34,7 +34,7 @@ export function PusherListener() {
         try {
           const audio = new Audio('/ding.mp3'); // Assure-toi d'avoir un fichier ding.mp3 dans /public
           audio.play().catch(() => {}); // Le catch évite l'erreur si le navigateur bloque l'autoplay
-        } catch (e) {
+        } catch {
           // Ignorer si l'audio n'est pas supporté
         }
 

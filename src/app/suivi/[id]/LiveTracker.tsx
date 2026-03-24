@@ -38,7 +38,7 @@ export function LiveTracker({ orderId, initialStatus }: TrackerProps) {
           audio.play().catch(() => {
             console.log("Lecture audio bloquée par le navigateur.");
           });
-        } catch (e) {
+        } catch  {
           // Ignorer si l'audio n'est pas supporté
         }
       }

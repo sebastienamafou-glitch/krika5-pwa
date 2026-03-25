@@ -5,7 +5,6 @@ import PosClient from './PosClient';
 export const dynamic = 'force-dynamic';
 
 export default async function PosServerPage() {
-  // 1. Récupération des commandes à encaisser
   const pendingOrders = await prisma.order.findMany({
     where: { paymentStatus: 'UNPAID' },
     orderBy: { createdAt: 'desc' },
@@ -15,13 +14,19 @@ export default async function PosServerPage() {
     }
   });
 
-  // 2. Récupération du catalogue pour la grille de caisse
   const categories = await prisma.category.findMany({
     orderBy: { order: 'asc' },
     include: {
       products: {
         where: { isAvailable: true },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          imageUrl: true,    // ← visuel pour les cartes produits
+          description: true, // ← sous-titre optionnel sur la carte
+        }
       }
     }
   });

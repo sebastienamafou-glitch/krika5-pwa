@@ -1,7 +1,8 @@
 // src/app/hub/page.tsx
 import Link from 'next/link';
 import Image from 'next/image';
-import { Store, ChefHat, Settings, Utensils, LogOut, Bike, BookOpen, Activity } from 'lucide-react';
+// AJOUT DE L'ICÔNE TV
+import { Store, ChefHat, Settings, Utensils, LogOut, Bike, BookOpen, Activity, Tv } from 'lucide-react';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { jwtVerify } from 'jose';
@@ -42,6 +43,14 @@ export default async function HubPage() {
       href: "/kds",
       icon: <ChefHat className="w-12 h-12 mb-4 text-emerald-400" />,
       color: "hover:border-emerald-500/50 hover:bg-emerald-500/10",
+    },
+    // NOUVEAU MODULE : MENU BOARD (TV)
+    {
+      title: "Menu Board",
+      description: "Affichage dynamique pour écran comptoir",
+      href: "/menu-board",
+      icon: <Tv className="w-12 h-12 mb-4 text-red-400" />,
+      color: "hover:border-red-500/50 hover:bg-red-500/10",
     },
     {
       title: "Catalogue",
@@ -107,6 +116,7 @@ export default async function HubPage() {
           <Link 
             key={mod.href} 
             href={mod.href} 
+            // Ajout d'une bordure subtile de la couleur du thème pour le Menu Board
             className={`flex flex-col items-center justify-center text-center p-10 rounded-[2.5rem] border border-white/5 bg-slate-900/50 backdrop-blur-sm transition-all duration-500 group ${mod.color} hover:-translate-y-2`}
           >
             <div className="transform group-hover:scale-110 transition-transform duration-500 ease-out">
@@ -144,7 +154,7 @@ export default async function HubPage() {
       </div>
 
       <footer className="mt-auto pt-12 text-slate-700 text-[10px] font-bold uppercase tracking-widest">
-        Version 2.0.4 &mdash; Build Stable
+        Version 2.0.5 &mdash; Build Stable
       </footer>
     </main>
   );

@@ -1,27 +1,21 @@
 // src/app/war-room/page.tsx
 import { prisma } from '@/lib/prisma';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { 
-  Activity, 
-  Clock, 
-  DollarSign, 
-  Package, 
-  ChefHat, 
-  TrendingUp, 
-  ShoppingBag, 
-  CalendarIcon,
-  Filter,
-  PieChart,
-  X
+import {
+  Activity, Clock, DollarSign, Package,
+  ChefHat, TrendingUp, ShoppingBag,
+  Filter, PieChart, X, Zap,
+  ArrowUpRight, AlertTriangle, CheckCircle2,
+  Truck, ShoppingCart
 } from 'lucide-react';
 import Link from 'next/link';
-import { startOfDay, endOfDay, parseISO } from 'date-fns';
+import { startOfDay, endOfDay, parseISO, format } from 'date-fns';
+import { fr } from 'date-fns/locale';
 
 export const dynamic = 'force-dynamic';
 
 interface Props {
-  searchParams: { 
-    startDate?: string; 
+  searchParams: {
+    startDate?: string;
     endDate?: string;
     status?: string;
     payment?: string;
@@ -29,304 +23,616 @@ interface Props {
   };
 }
 
-export default async function WarRoomPage({ searchParams }: Props) {
-  // 1. Gestion des dates pour la requête globale
-  const start = searchParams.startDate ? startOfDay(parseISO(searchParams.startDate)) : startOfDay(new Date());
-  const end = searchParams.endDate ? endOfDay(parseISO(searchParams.endDate)) : endOfDay(new Date());
-
-  // 2. Récupération des données ultra-optimisée pour les KPIs
-  const [orders, lowStockProducts] = await prisma.$transaction([
-    prisma.order.findMany({
-      where: { 
-        createdAt: { gte: start, lte: end } 
-      },
-      include: { user: true },
-      orderBy: { createdAt: 'desc' }
-    }),
-    prisma.product.findMany({
-      where: { 
-        stock: { lte: 5 },
-        isAvailable: true 
-      }
-    })
-  ]);
-
-  // 3. Calcul de la Business Intelligence (BI) - Reste intact malgré les filtres du tableau
-  const revenue = orders
-    .filter(o => o.status === 'COMPLETED' && o.paymentStatus === 'PAID')
-    .reduce((sum, order) => sum + order.totalAmount, 0);
-
-  const pendingOrders = orders.filter(o => o.status === 'PENDING').length;
-  const completedOrders = orders.filter(o => o.status === 'COMPLETED').length;
-  
-  const deliveryOrders = orders.filter(o => o.orderType === 'DELIVERY').length;
-  const takeawayOrders = orders.filter(o => o.orderType === 'TAKEAWAY').length;
-
-  // 4. Filtrage dynamique pour le tableau (En mémoire pour ne pas casser la BI)
-  let filteredTableOrders = orders;
-  if (searchParams.status) {
-    filteredTableOrders = filteredTableOrders.filter(o => o.status === searchParams.status);
-  }
-  if (searchParams.payment) {
-    filteredTableOrders = filteredTableOrders.filter(o => o.paymentStatus === searchParams.payment);
-  }
-  if (searchParams.type) {
-    filteredTableOrders = filteredTableOrders.filter(o => o.orderType === searchParams.type);
-  }
-
+/* ─── HELPERS ──────────────────────────────────────────────── */
+function StatusPill({ status }: { status: string }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    COMPLETED: { label: 'Terminé',   cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/25' },
+    PENDING:   { label: 'En attente', cls: 'bg-amber-500/10  text-amber-400  border-amber-500/25'  },
+    CANCELLED: { label: 'Annulé',    cls: 'bg-red-500/10    text-red-400    border-red-500/25'    },
+  };
+  const s = map[status] ?? { label: status, cls: 'bg-slate-800 text-slate-400 border-white/10' };
   return (
-    <main className="min-h-screen bg-slate-950 p-6 md:p-10 text-white">
-      {/* HEADER PRINCIPAL */}
-      <header className="mb-10 border-b border-white/10 pb-6">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight flex items-center gap-3">
-              <Activity className="h-10 w-10 text-primary" />
-              War Room
-            </h1>
-            <p className="text-slate-400 mt-2 font-medium italic uppercase tracking-widest text-xs">
-              Centre de commandement KRIKA&apos;5
-            </p>
-          </div>
+    <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.15em] border ${s.cls}`}>
+      {s.label}
+    </span>
+  );
+}
 
-          <div className="flex flex-wrap gap-3">
-            <Link href="/war-room/pos" className="bg-emerald-600 hover:bg-emerald-500 px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center transition-all hover:-translate-y-1 shadow-lg shadow-emerald-900/20 text-white">
-              <DollarSign className="mr-2 h-5 w-5" /> Caisse (POS)
-            </Link>
-            <Link href="/kds" className="bg-orange-600 hover:bg-orange-500 px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center transition-all hover:-translate-y-1 shadow-lg shadow-orange-900/20 text-white">
-              <ChefHat className="mr-2 h-5 w-5" /> Cuisine
-            </Link>
-            <Link href="/war-room/catalogue" className="bg-slate-800 hover:bg-slate-700 px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center transition-all text-white">
-              <Package className="mr-2 h-5 w-5" /> Stocks
-            </Link>
-            <a href="/api/export/csv" download className="bg-white hover:bg-slate-200 text-slate-950 px-5 py-3 rounded-xl font-black text-sm uppercase tracking-widest flex items-center transition-all shadow-xl hover:-translate-y-1 border border-transparent">
-              <TrendingUp className="mr-2 h-5 w-5 text-primary" /> Export Excel
-            </a>
-          </div>
-        </div>
+function PaymentPill({ status }: { status: string }) {
+  const paid = status === 'PAID';
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-[0.15em] border ${
+      paid ? 'bg-blue-500/10 text-blue-400 border-blue-500/25' : 'bg-rose-500/10 text-rose-400 border-rose-500/25'
+    }`}>
+      {paid ? <CheckCircle2 className="h-2.5 w-2.5" /> : <Clock className="h-2.5 w-2.5" />}
+      {paid ? 'Payé' : 'Impayé'}
+    </span>
+  );
+}
 
-        {/* BARRE DE FILTRAGE PAR DATE */}
-        <div className="mt-8 bg-slate-900/80 p-5 rounded-2xl border border-white/10 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-          <div className="flex items-center gap-2 text-primary font-black text-sm uppercase tracking-widest">
-            <Filter className="h-5 w-5" /> Période d&apos;analyse
-          </div>
-          <form className="flex flex-wrap items-center gap-3">
-            <input 
-              type="date" 
-              name="startDate"
-              defaultValue={searchParams.startDate || new Date().toISOString().split('T')[0]}
-              className="bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none text-white"
-            />
-            <span className="text-slate-500 font-bold uppercase text-xs">au</span>
-            <input 
-              type="date" 
-              name="endDate"
-              defaultValue={searchParams.endDate || new Date().toISOString().split('T')[0]}
-              className="bg-slate-950 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:border-primary outline-none text-white"
-            />
-            <button type="submit" className="bg-primary text-white px-6 py-3 rounded-xl font-black text-xs uppercase tracking-widest hover:bg-orange-600 transition-colors shadow-lg shadow-primary/20">
-              Mettre à jour
-            </button>
-            <Link href="/war-room" className="text-slate-500 text-xs font-bold uppercase tracking-widest hover:text-white transition-colors ml-2 px-4">
-              Reset
-            </Link>
-          </form>
-        </div>
-      </header>
+function TypeBadge({ type }: { type: string }) {
+  const delivery = type === 'DELIVERY';
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider ${
+      delivery ? 'text-purple-400' : 'text-amber-400'
+    }`}>
+      {delivery ? <Truck className="h-3 w-3" /> : <ShoppingCart className="h-3 w-3" />}
+      {delivery ? 'Livraison' : 'Emporter'}
+    </span>
+  );
+}
 
-      {/* ALERTE STOCKS CRITIQUES */}
-      {lowStockProducts.length > 0 && (
-        <div className="mb-10 bg-red-500/10 border border-red-500/50 rounded-2xl p-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-5 shadow-2xl shadow-red-500/5">
-          <div className="flex items-center gap-5">
-            <div className="bg-red-500 p-4 rounded-2xl shadow-lg shadow-red-900/40 animate-pulse">
-              <Package className="h-8 w-8 text-white" />
-            </div>
-            <div>
-              <h3 className="text-red-500 font-black uppercase text-lg tracking-tight">Rupture Imminente</h3>
-              <p className="text-slate-300 text-sm font-medium mt-1">
-                <span className="text-white font-bold">{lowStockProducts.length} produit(s)</span> en stock critique (&le; 5 unités).
-              </p>
-            </div>
-          </div>
-          <Link href="/war-room/catalogue" className="w-full md:w-auto text-center bg-red-600 hover:bg-red-500 text-white px-8 py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-lg">
-            Réapprovisionner
-          </Link>
-        </div>
-      )}
-
-      {/* KPI CARDS */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 mb-12">
-        <Card className="bg-slate-900 border-white/10 shadow-2xl relative overflow-hidden group hover:border-primary/50 transition-colors">
-          <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-10 transition-opacity">
-            <DollarSign className="h-32 w-32 text-white" />
-          </div>
-          <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-white/5 mb-4 z-10 relative">
-            <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Chiffre d&apos;Affaires</CardTitle>
-            <div className="p-2 bg-emerald-500/10 rounded-lg"><DollarSign className="h-5 w-5 text-emerald-500" /></div>
-          </CardHeader>
-          <CardContent className="z-10 relative">
-            <div className="text-4xl font-black text-white">{revenue.toLocaleString('fr-FR')} F</div>
-            <p className="text-[10px] text-emerald-400 mt-2 font-black uppercase tracking-widest bg-emerald-500/10 inline-block px-2 py-1 rounded-md">Ventes Encaissées</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900 border-white/10 shadow-2xl hover:border-blue-500/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-white/5 mb-4">
-            <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Total Servies</CardTitle>
-            <div className="p-2 bg-blue-500/10 rounded-lg"><Activity className="h-5 w-5 text-blue-500" /></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-black text-white">{completedOrders}</div>
-            <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase">Commandes terminées</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900 border-white/10 shadow-2xl hover:border-orange-500/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-white/5 mb-4">
-            <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">En Attente</CardTitle>
-            <div className="p-2 bg-orange-500/10 rounded-lg"><Clock className="h-5 w-5 text-orange-500" /></div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-black text-white">{pendingOrders}</div>
-            <p className="text-[10px] text-slate-500 mt-2 font-bold uppercase">En cours de préparation</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-slate-900 border-white/10 shadow-2xl hover:border-purple-500/50 transition-colors">
-          <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-white/5 mb-4">
-            <CardTitle className="text-xs font-black text-slate-400 uppercase tracking-widest">Canaux de Vente</CardTitle>
-            <div className="p-2 bg-purple-500/10 rounded-lg"><PieChart className="h-5 w-5 text-purple-500" /></div>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-between items-end">
-              <div>
-                <div className="text-2xl font-black text-purple-400">{deliveryOrders}</div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">Livraisons</p>
-              </div>
-              <div className="h-8 w-px bg-white/10"></div>
-              <div className="text-right">
-                <div className="text-2xl font-black text-primary">{takeawayOrders}</div>
-                <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">À Emporter</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+/* ─── KPI CARD ─────────────────────────────────────────────── */
+function KpiCard({
+  label, value, sub, accent, icon: Icon, subAccent, fill,
+}: {
+  label: string; value: string; sub: string;
+  accent: string; icon: React.ElementType;
+  subAccent?: string; fill?: number;
+}) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-white/5 p-6 flex flex-col gap-3 group transition-all duration-300 hover:border-white/10"
+      style={{ background: 'rgba(15,15,22,0.9)' }}
+    >
+      <div className="absolute -right-4 -top-4 opacity-[0.04] group-hover:opacity-[0.07] transition-opacity">
+        <Icon className="h-32 w-32" style={{ color: accent }} />
       </div>
 
-      {/* ACTIVITÉ RÉCENTE (AVEC NOUVEAUX FILTRES) */}
-      <Card className="bg-slate-900 border-white/10 shadow-2xl overflow-hidden">
-        <CardHeader className="border-b border-white/5 bg-slate-800/30 py-6 px-8 flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          <div className="flex items-center gap-3">
-            <CardTitle className="text-xl font-black text-white uppercase tracking-tight">Flux des commandes</CardTitle>
-            <CalendarIcon className="h-5 w-5 text-slate-500" />
+      <div className="absolute top-0 left-0 h-0.5 w-16 rounded-full" style={{ background: `linear-gradient(90deg, ${accent}, transparent)` }} />
+
+      <div className="flex items-center justify-between z-10 relative">
+        <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">{label}</p>
+        <div className="p-2 rounded-xl" style={{ background: `${accent}15` }}>
+          <Icon className="h-4 w-4" style={{ color: accent }} />
+        </div>
+      </div>
+
+      <div className="z-10 relative">
+        <p className="text-4xl font-black text-white tracking-tight" style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.04em' }}>
+          {value}
+        </p>
+        <p className="text-[10px] mt-2 font-bold uppercase tracking-widest" style={{ color: subAccent ?? '#64748b' }}>
+          {sub}
+        </p>
+      </div>
+
+      {fill !== undefined && (
+        <div className="z-10 relative mt-1">
+          <div className="h-0.5 w-full bg-white/5 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{ width: `${fill}%`, background: `linear-gradient(90deg, ${accent}, ${accent}80)` }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── PAGE ──────────────────────────────────────────────────── */
+export default async function WarRoomPage({ searchParams }: Props) {
+  const start = searchParams.startDate
+    ? startOfDay(parseISO(searchParams.startDate))
+    : startOfDay(new Date());
+  const end = searchParams.endDate
+    ? endOfDay(parseISO(searchParams.endDate))
+    : endOfDay(new Date());
+
+  const [orders, lowStockProducts] = await prisma.$transaction([
+    prisma.order.findMany({
+      where: { createdAt: { gte: start, lte: end } },
+      include: { user: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.product.findMany({
+      where: { stock: { lte: 5 }, isAvailable: true },
+    }),
+  ]);
+
+  /* BI */
+  const revenue         = orders.filter(o => o.status === 'COMPLETED' && o.paymentStatus === 'PAID').reduce((s, o) => s + o.totalAmount, 0);
+  const pendingOrders   = orders.filter(o => o.status === 'PENDING').length;
+  const completedOrders = orders.filter(o => o.status === 'COMPLETED').length;
+  const deliveryOrders  = orders.filter(o => o.orderType === 'DELIVERY').length;
+  const takeawayOrders  = orders.filter(o => o.orderType === 'TAKEAWAY').length;
+  const totalOrders     = orders.length;
+  const completionRate  = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
+  const deliveryRate    = totalOrders > 0 ? Math.round((deliveryOrders / totalOrders) * 100) : 0;
+
+  /* Filtered table */
+  let filteredOrders = orders;
+  if (searchParams.status)  filteredOrders = filteredOrders.filter(o => o.status === searchParams.status);
+  if (searchParams.payment) filteredOrders = filteredOrders.filter(o => o.paymentStatus === searchParams.payment);
+  if (searchParams.type)    filteredOrders = filteredOrders.filter(o => o.orderType === searchParams.type);
+
+  const today = format(new Date(), "EEEE d MMMM yyyy", { locale: fr });
+  const hasTableFilters = !!(searchParams.status || searchParams.payment || searchParams.type);
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500;700&family=DM+Sans:ital,wght@0,400;0,500;0,700;1,400&display=swap');
+
+        .wr-scan::before {
+          content: '';
+          position: fixed;
+          inset: 0;
+          background: repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(0,0,0,0.03) 2px,
+            rgba(0,0,0,0.03) 4px
+          );
+          pointer-events: none;
+          z-index: 9999;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1 } 50% { opacity: 0 } }
+        .blink { animation: blink 1.2s step-end infinite; }
+
+        @keyframes pulse-ring {
+          0%   { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+          70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
+          100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
+        }
+        .pulse-ring { animation: pulse-ring 2s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite; }
+      `}</style>
+
+      <main
+        className="wr-scan min-h-screen text-white"
+        style={{
+          fontFamily: "'DM Sans', sans-serif",
+          background: 'linear-gradient(135deg, #07070f 0%, #0d0d1a 50%, #070710 100%)',
+        }}
+      >
+        <header
+          className="sticky top-0 z-50 px-8 py-5 flex items-center justify-between"
+          style={{
+            background: 'rgba(7,7,15,0.92)',
+            backdropFilter: 'blur(24px)',
+            borderBottom: '1px solid rgba(255,255,255,0.04)',
+          }}
+        >
+          <div className="flex items-center gap-6">
+            <div className="flex items-center gap-2.5 px-4 py-2 rounded-full border border-emerald-500/20 bg-emerald-500/5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500 blink" />
+              <span className="text-[10px] font-black uppercase tracking-[0.3em] text-emerald-400">Live</span>
+            </div>
+
+            <div>
+              <h1
+                className="text-5xl text-white leading-none"
+                style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.08em' }}
+              >
+                WAR <span style={{ color: '#f5a623' }}>ROOM</span>
+              </h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-slate-600 mt-0.5">
+                KRIKA&apos;5 · Centre de commandement
+              </p>
+            </div>
+
+            <div
+              className="hidden lg:block px-4 py-2 rounded-xl border border-white/5"
+              style={{ background: 'rgba(255,255,255,0.02)', fontFamily: "'IBM Plex Mono', monospace" }}
+            >
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest">{today}</p>
+            </div>
           </div>
 
-          {/* NOUVEAU : BARRE DE FILTRES DU TABLEAU */}
-          <form method="GET" className="flex flex-wrap items-center gap-3">
-            {/* Conservation des dates actuelles dans l'URL */}
-            {searchParams.startDate && <input type="hidden" name="startDate" value={searchParams.startDate} />}
-            {searchParams.endDate && <input type="hidden" name="endDate" value={searchParams.endDate} />}
+          <nav className="flex items-center gap-3">
+            <Link
+              href="/war-room/pos"
+              className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-200 hover:-translate-y-0.5"
+              style={{
+                background: 'linear-gradient(135deg, #059669, #047857)',
+                boxShadow: '0 4px 20px rgba(5,150,105,0.25)',
+                color: 'white',
+              }}
+            >
+              <DollarSign className="h-4 w-4" />
+              Caisse
+              <ArrowUpRight className="h-3 w-3 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
+            </Link>
 
-            <select name="type" defaultValue={searchParams.type || ""} className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-primary uppercase tracking-widest appearance-none">
-              <option value="">🛒 Tous types</option>
-              <option value="TAKEAWAY">À Emporter</option>
-              <option value="DELIVERY">Livraison</option>
-            </select>
+            <Link
+              href="/kds"
+              className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all duration-200 hover:-translate-y-0.5"
+              style={{
+                background: 'linear-gradient(135deg, #f5a623, #e8860f)',
+                boxShadow: '0 4px 20px rgba(245,166,35,0.2)',
+                color: '#0d0d0d',
+              }}
+            >
+              <ChefHat className="h-4 w-4" /> Cuisine
+            </Link>
 
-            <select name="payment" defaultValue={searchParams.payment || ""} className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-primary uppercase tracking-widest appearance-none">
-              <option value="">💰 Tous paiements</option>
-              <option value="PAID">Payé</option>
-              <option value="UNPAID">Non Payé</option>
-            </select>
+            <Link
+              href="/war-room/catalogue"
+              className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest border border-white/8 text-slate-300 hover:text-white hover:border-white/15 transition-all"
+              style={{ background: 'rgba(255,255,255,0.03)' }}
+            >
+              <Package className="h-4 w-4" /> Stocks
+            </Link>
 
-            <select name="status" defaultValue={searchParams.status || ""} className="bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs font-bold text-white outline-none focus:border-primary uppercase tracking-widest appearance-none">
-              <option value="">⏳ Tous statuts</option>
-              <option value="PENDING">En attente</option>
-              <option value="COMPLETED">Terminé</option>
-            </select>
+            <a
+              href="/api/export/csv"
+              download
+              className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest border border-white/8 text-slate-300 hover:text-white hover:border-white/15 transition-all"
+              style={{ background: 'rgba(255,255,255,0.03)' }}
+            >
+              <TrendingUp className="h-4 w-4" style={{ color: '#f5a623' }} /> Export
+            </a>
+          </nav>
+        </header>
 
-            <button type="submit" className="bg-slate-800 hover:bg-slate-700 text-white px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-colors shadow-lg">
-              Filtrer
-            </button>
-            
-            {/* Bouton Reset uniquement si un filtre tableau est actif */}
-            {(searchParams.type || searchParams.payment || searchParams.status) && (
-              <Link 
-                href={`/war-room?${searchParams.startDate ? `startDate=${searchParams.startDate}&` : ''}${searchParams.endDate ? `endDate=${searchParams.endDate}` : ''}`} 
-                className="bg-red-500/10 hover:bg-red-500/20 text-red-400 p-2.5 rounded-xl transition-colors"
-                title="Effacer les filtres"
-              >
-                <X className="w-4 h-4" />
-              </Link>
-            )}
-          </form>
-        </CardHeader>
-        
-        <CardContent className="p-0">
-          {filteredTableOrders.length === 0 ? (
-            <div className="p-20 text-center flex flex-col items-center gap-4">
-              <ShoppingBag className="h-16 w-16 text-slate-800" />
-              <p className="text-slate-500 font-bold uppercase text-sm tracking-widest">Aucune commande pour ces critères</p>
+        <div className="px-8 py-8 space-y-8">
+          <div
+            className="rounded-2xl border border-white/5 p-5 flex flex-col md:flex-row md:items-center justify-between gap-4"
+            style={{ background: 'rgba(255,255,255,0.025)', backdropFilter: 'blur(8px)' }}
+          >
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg" style={{ background: 'rgba(245,166,35,0.1)' }}>
+                <Filter className="h-4 w-4" style={{ color: '#f5a623' }} />
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-500">Période d&apos;analyse</p>
+                <p className="text-xs text-slate-400 font-medium mt-0.5">
+                  {searchParams.startDate
+                    ? `${searchParams.startDate} → ${searchParams.endDate ?? searchParams.startDate}`
+                    : "Aujourd'hui"}
+                </p>
+              </div>
             </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm text-slate-300 whitespace-nowrap">
-                <thead className="bg-slate-950/80 text-[10px] uppercase font-black text-slate-500 tracking-widest">
-                  <tr>
-                    <th className="px-8 py-5">Commande</th>
-                    <th className="px-8 py-5">Date & Heure</th>
-                    <th className="px-8 py-5">Client</th>
-                    <th className="px-8 py-5">Type</th>
-                    <th className="px-8 py-5">Montant</th>
-                    <th className="px-8 py-5">Paiement</th>
-                    <th className="px-8 py-5 text-right">Statut</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5 font-medium">
-                  {filteredTableOrders.slice(0, 15).map((order) => (
-                    <tr key={order.id} className="hover:bg-white/[0.03] transition-colors group">
-                      <td className="px-8 py-5 text-white font-black">#{order.id.slice(-6).toUpperCase()}</td>
-                      <td className="px-8 py-5">
-                        <span className="block text-slate-300">{new Date(order.createdAt).toLocaleDateString('fr-FR')}</span>
-                        <span className="text-[10px] text-slate-500 font-bold">{new Date(order.createdAt).toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}</span>
-                      </td>
-                      <td className="px-8 py-5">
-                        {order.user?.phone ? (
-                          order.user.phone
-                        ) : (
-                      <span className="text-slate-500 italic text-xs">Anonyme</span>
-    )}
-                      </td>
-                      <td className="px-8 py-5 font-black text-white">{order.totalAmount.toLocaleString()} F</td>
-                      <td className="px-8 py-5">
-                        <span className={`px-2.5 py-1 rounded-md text-[10px] font-black uppercase tracking-widest border ${
-                          order.paymentStatus === 'PAID' ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/20' : 'bg-red-500/10 text-red-500 border-red-500/20'
-                        }`}>
-                          {order.paymentStatus}
-                        </span>
-                      </td>
-                      <td className="px-8 py-5 text-right">
-                        <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm ${
-                          order.status === 'COMPLETED' ? 'bg-blue-600 text-white' : 'bg-orange-500 text-white'
-                        }`}>
-                          {order.status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filteredTableOrders.length > 15 && (
-                <div className="p-6 bg-slate-950/50 text-center border-t border-white/5">
-                  <Link href="/war-room/orders" className="text-xs font-black text-primary hover:text-white transition-colors uppercase tracking-widest inline-flex items-center gap-2">
-                    Voir les {filteredTableOrders.length - 15} autres commandes filtrées &rarr;
-                  </Link>
+
+            <form className="flex flex-wrap items-center gap-3">
+              {['startDate', 'endDate'].map((name) => (
+                <input
+                  key={name}
+                  type="date"
+                  name={name}
+                  defaultValue={
+                    (name === 'startDate' ? searchParams.startDate : searchParams.endDate)
+                    ?? new Date().toISOString().split('T')[0]
+                  }
+                  className="rounded-xl px-4 py-2.5 text-sm font-bold outline-none transition-all"
+                  style={{
+                    background: 'rgba(0,0,0,0.4)',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'white',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                />
+              ))}
+              <span className="text-slate-600 font-bold text-xs uppercase tracking-widest">→</span>
+              <button
+                type="submit"
+                className="px-6 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:-translate-y-0.5"
+                style={{
+                  background: 'linear-gradient(135deg, #f5a623, #e8860f)',
+                  boxShadow: '0 4px 16px rgba(245,166,35,0.2)',
+                  color: '#0d0d0d',
+                }}
+              >
+                Analyser
+              </button>
+              <Link
+                href="/war-room"
+                className="px-4 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-slate-300 transition-colors border border-white/5 hover:border-white/10"
+              >
+                Reset
+              </Link>
+            </form>
+          </div>
+
+          {lowStockProducts.length > 0 && (
+            <div
+              className="rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-5 p-6"
+              style={{
+                background: 'linear-gradient(135deg, rgba(239,68,68,0.05), rgba(239,68,68,0.02))',
+                borderColor: 'rgba(239,68,68,0.2)',
+              }}
+            >
+              <div className="flex items-center gap-5">
+                <div className="p-4 rounded-2xl bg-red-600 pulse-ring flex-shrink-0">
+                  <AlertTriangle className="h-7 w-7 text-white" />
                 </div>
-              )}
+                <div>
+                  <h3
+                    className="text-red-400 text-xl"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}
+                  >
+                    RUPTURE IMMINENTE
+                  </h3>
+                  <p className="text-slate-300 text-sm mt-1">
+                    <span className="font-black text-white">{lowStockProducts.length} produit{lowStockProducts.length > 1 ? 's' : ''}</span>
+                    {' '}en stock critique
+                    <span className="ml-2 text-slate-500 font-mono text-xs">
+                      [{lowStockProducts.map(p => p.name).join(', ')}]
+                    </span>
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/war-room/catalogue"
+                className="flex-shrink-0 px-8 py-3.5 rounded-xl font-black text-xs uppercase tracking-widest transition-all hover:-translate-y-0.5"
+                style={{
+                  background: 'linear-gradient(135deg, #dc2626, #b91c1c)',
+                  boxShadow: '0 4px 20px rgba(220,38,38,0.3)',
+                  color: 'white',
+                }}
+              >
+                → Réapprovisionner
+              </Link>
             </div>
           )}
-        </CardContent>
-      </Card>
-    </main>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
+            <KpiCard
+              label="Chiffre d'Affaires"
+              value={`${revenue.toLocaleString('fr-FR')} F`}
+              sub="Ventes encaissées · période"
+              accent="#10b981"
+              icon={DollarSign}
+              subAccent="#10b981"
+              fill={completionRate}
+            />
+            <KpiCard
+              label="Commandes Terminées"
+              value={String(completedOrders)}
+              sub={`${completionRate}% du total · ${totalOrders} cmd`}
+              accent="#3b82f6"
+              icon={Activity}
+              fill={completionRate}
+            />
+            <KpiCard
+              label="En Attente"
+              value={String(pendingOrders)}
+              sub="En cours de préparation"
+              accent="#f59e0b"
+              icon={Clock}
+              fill={totalOrders > 0 ? Math.round((pendingOrders / totalOrders) * 100) : 0}
+            />
+            <KpiCard
+              label="Canaux de Vente"
+              value={`${deliveryOrders} / ${takeawayOrders}`}
+              sub={`Livraison · Emporter · ${deliveryRate}% livré`}
+              accent="#a855f7"
+              icon={PieChart}
+              fill={deliveryRate}
+            />
+          </div>
+
+          <div
+            className="rounded-2xl border border-white/5 overflow-hidden"
+            style={{ background: 'rgba(10,10,18,0.8)' }}
+          >
+            <div
+              className="px-8 py-5 flex flex-col xl:flex-row xl:items-center justify-between gap-5 border-b border-white/5"
+              style={{ background: 'rgba(255,255,255,0.02)' }}
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-2 rounded-lg" style={{ background: 'rgba(245,166,35,0.1)' }}>
+                  <Zap className="h-5 w-5" style={{ color: '#f5a623' }} />
+                </div>
+                <div>
+                  <h2
+                    className="text-xl text-white"
+                    style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}
+                  >
+                    FLUX DES COMMANDES
+                  </h2>
+                  <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest mt-0.5">
+                    {filteredOrders.length} résultat{filteredOrders.length !== 1 ? 's' : ''}
+                    {hasTableFilters && ' · filtres actifs'}
+                  </p>
+                </div>
+              </div>
+
+              {/* CORRECTION DU TYPAGE DES FILTRES ICI */}
+              <form method="GET" className="flex flex-wrap items-center gap-2.5">
+                {searchParams.startDate && <input type="hidden" name="startDate" value={searchParams.startDate} />}
+                {searchParams.endDate   && <input type="hidden" name="endDate"   value={searchParams.endDate}   />}
+
+                <select
+                  name="type"
+                  defaultValue={searchParams.type || ''}
+                  className="rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider outline-none appearance-none cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    color: '#94a3b8',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                >
+                  <option value="">Tous types</option>
+                  <option value="TAKEAWAY">Emporter</option>
+                  <option value="DELIVERY">Livraison</option>
+                </select>
+
+                <select
+                  name="payment"
+                  defaultValue={searchParams.payment || ''}
+                  className="rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider outline-none appearance-none cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    color: '#94a3b8',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                >
+                  <option value="">Paiement</option>
+                  <option value="PAID">Payé</option>
+                  <option value="UNPAID">Impayé</option>
+                </select>
+
+                <select
+                  name="status"
+                  defaultValue={searchParams.status || ''}
+                  className="rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider outline-none appearance-none cursor-pointer transition-all"
+                  style={{
+                    background: 'rgba(0,0,0,0.5)',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    color: '#94a3b8',
+                    fontFamily: "'IBM Plex Mono', monospace",
+                  }}
+                >
+                  <option value="">Statut</option>
+                  <option value="PENDING">Attente</option>
+                  <option value="COMPLETED">Terminé</option>
+                </select>
+
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl text-[11px] font-black uppercase tracking-widest border border-white/8 text-slate-300 hover:text-white hover:border-white/15 transition-all"
+                  style={{ background: 'rgba(255,255,255,0.04)' }}
+                >
+                  Filtrer
+                </button>
+
+                {hasTableFilters && (
+                  <Link
+                    href={`/war-room?${searchParams.startDate ? `startDate=${searchParams.startDate}&` : ''}${searchParams.endDate ? `endDate=${searchParams.endDate}` : ''}`}
+                    className="p-2 rounded-xl border border-red-500/20 text-red-400 hover:bg-red-500/10 transition-all"
+                    title="Effacer les filtres"
+                  >
+                    <X className="h-4 w-4" />
+                  </Link>
+                )}
+              </form>
+            </div>
+
+            {filteredOrders.length === 0 ? (
+              <div className="py-24 flex flex-col items-center gap-4 text-center">
+                <div className="p-6 rounded-2xl border border-white/5" style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  <ShoppingBag className="h-12 w-12 text-slate-700" />
+                </div>
+                <p className="text-slate-600 font-black uppercase text-xs tracking-[0.3em]">
+                  Aucune commande pour ces critères
+                </p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left whitespace-nowrap">
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', background: 'rgba(0,0,0,0.3)' }}>
+                      {['#ID', 'Date · Heure', 'Client', 'Type', 'Montant', 'Paiement', 'Statut'].map((h, i) => (
+                        <th
+                          key={h}
+                          className="px-6 py-4 text-[10px] font-black uppercase text-slate-600"
+                          style={{
+                            letterSpacing: '0.2em',
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            textAlign: i === 6 ? 'right' : 'left',
+                          }}
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredOrders.slice(0, 15).map((order) => (
+                      <tr
+                        key={order.id}
+                        className="group transition-colors duration-150 hover:bg-white/[0.025]"
+                        style={{ borderBottom: '1px solid rgba(255,255,255,0.025)' }}
+                      >
+                        <td className="px-6 py-4">
+                          <span
+                            className="text-sm font-black text-white"
+                            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                          >
+                            #{order.id.slice(-6).toUpperCase()}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className="block text-sm text-slate-300 font-medium"
+                            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                          >
+                            {new Date(order.createdAt).toLocaleDateString('fr-FR')}
+                          </span>
+                          <span
+                            className="text-[10px] text-slate-600"
+                            style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+                          >
+                            {new Date(order.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-medium text-slate-300">
+                            {order.user?.phone ?? (
+                              <span className="text-slate-600 italic text-xs">Anonyme</span>
+                            )}
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <TypeBadge type={order.orderType} />
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <span
+                            className="text-base font-black text-white"
+                            style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.06em' }}
+                          >
+                            {order.totalAmount.toLocaleString('fr-FR')}
+                            <span className="text-xs ml-0.5 text-slate-500" style={{ fontFamily: "'DM Sans', sans-serif" }}>F</span>
+                          </span>
+                        </td>
+
+                        <td className="px-6 py-4">
+                          <PaymentPill status={order.paymentStatus} />
+                        </td>
+
+                        <td className="px-6 py-4 text-right">
+                          <StatusPill status={order.status} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {filteredOrders.length > 15 && (
+                  <div
+                    className="px-8 py-5 flex justify-between items-center border-t border-white/5"
+                    style={{ background: 'rgba(0,0,0,0.2)' }}
+                  >
+                    <p className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">
+                      Affichage 15 / {filteredOrders.length}
+                    </p>
+                    <Link
+                      href="/war-room/orders"
+                      className="flex items-center gap-2 text-xs font-black uppercase tracking-widest transition-colors hover:-translate-y-0.5 transition-transform"
+                      style={{ color: '#f5a623' }}
+                    >
+                      Voir {filteredOrders.length - 15} de plus
+                      <ArrowUpRight className="h-3.5 w-3.5" />
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <footer className="py-4 flex justify-between items-center border-t border-white/[0.03]">
+            <p className="text-[10px] font-bold uppercase text-slate-700 tracking-widest">
+              KRIKA&apos;5 · War Room v2
+            </p>
+            <p
+              className="text-[10px] text-slate-700"
+              style={{ fontFamily: "'IBM Plex Mono', monospace" }}
+            >
+              {totalOrders} cmd · {completedOrders} terminées · {revenue.toLocaleString('fr-FR')} F CA
+            </p>
+          </footer>
+        </div>
+      </main>
+    </>
   );
 }

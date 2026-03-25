@@ -33,3 +33,29 @@ export async function markAsDelivered(orderId: string) {
     return { success: false, error: "Erreur lors de la validation de la livraison." };
   }
 }
+export async function linkCustomerToOrder(orderId: string, customerId: string) {
+  try {
+    // 1. Vérifier que le client existe
+    const customer = await prisma.user.findUnique({
+      where: { id: customerId }
+    });
+
+    if (!customer) {
+      return { success: false, error: "Carte de fidélité non reconnue." };
+    }
+
+    // 2. Lier la commande au client
+    await prisma.order.update({
+      where: { id: orderId },
+      data: { userId: customer.id }
+    });
+
+    // 3. Rafraîchir l'interface du livreur
+    revalidatePath('/livraison');
+    
+    return { success: true, phone: customer.phone };
+  } catch (error) {
+    console.error("Erreur linkCustomerToOrder:", error);
+    return { success: false, error: "Erreur lors de la liaison." };
+  }
+}

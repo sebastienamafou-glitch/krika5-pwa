@@ -2,130 +2,278 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Clock, MapPin, ShoppingBag, Utensils, CheckCircle2, Loader2, Navigation } from 'lucide-react';
-import { markOrderAsReady } from '@/actions/kds'; 
+import {
+  Clock, MapPin, Truck, ShoppingBag,
+  CheckCircle2, Loader2, Navigation,
+} from 'lucide-react';
+import { markOrderAsReady } from '@/actions/kds';
 
-interface OrderItem {
+/* ─── TYPES (exportés pour page.tsx) ────────────────────────── */
+export interface OrderItem {
   id: string;
   quantity: number;
-  product: { name: string; };
+  product: { name: string };
 }
 
-interface KdsOrder {
+export interface KdsOrder {
   id: string;
   createdAt: Date;
-  orderType: 'TAKEAWAY' | 'DELIVERY'; 
-  deliveryAddress: string | null;     
-  deliveryLat: number | null; // CORRECTION : Ajout du typage
-  deliveryLng: number | null; // CORRECTION : Ajout du typage
-  user: { phone: string; } | null;
+  orderType: 'TAKEAWAY' | 'DELIVERY';
+  deliveryAddress: string | null;
+  deliveryLat: number | null;
+  deliveryLng: number | null;
+  user: { phone: string } | null;
   items: OrderItem[];
 }
 
-interface OrderTicketProps {
-  order: KdsOrder;
-}
+/* ─── CHRONO HOOK ────────────────────────────────────────────── */
+function useElapsedMinutes(createdAt: Date): number {
+  const calc = () =>
+    Math.floor((Date.now() - new Date(createdAt).getTime()) / 60_000);
 
-export function OrderTicket({ order }: OrderTicketProps) {
-  const [elapsed, setElapsed] = useState(0);
-  const [isPending, setIsPending] = useState(false);
-
-  const isDelivery = order.orderType === 'DELIVERY';
-  const isLate = elapsed > 15; 
+  const [elapsed, setElapsed] = useState(calc);
 
   useEffect(() => {
-    const calculateElapsed = () => {
-      const diff = Math.floor((new Date().getTime() - new Date(order.createdAt).getTime()) / 60000);
-      setElapsed(diff);
-    };
-    calculateElapsed();
-    const timer = setInterval(calculateElapsed, 60000);
-    return () => clearInterval(timer);
-  }, [order.createdAt]);
+    const id = setInterval(() => setElapsed(calc), 60_000);
+    return () => clearInterval(id);
+  }, [createdAt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return elapsed;
+}
+
+/* ─── COMPOSANT TICKET ───────────────────────────────────────── */
+export function OrderTicket({ order }: { order: KdsOrder }) {
+  const [isPending, setIsPending] = useState(false);
+  const elapsed   = useElapsedMinutes(order.createdAt);
+  const isDelivery = order.orderType === 'DELIVERY';
+
+  // Niveaux d'urgence basés sur le temps écoulé
+  const urgency: 'ok' | 'warn' | 'late' =
+    elapsed >= 20 ? 'late' : elapsed >= 12 ? 'warn' : 'ok';
+
+  const mapsUrl =
+    order.deliveryLat !== null && order.deliveryLng !== null
+      ? `https://www.google.com/maps/search/?api=1&query=${order.deliveryLat},${order.deliveryLng}`
+      : null;
 
   const handleComplete = async () => {
     setIsPending(true);
     const result = await markOrderAsReady(order.id);
-    
     if (!result.success) {
       alert(result.error);
       setIsPending(false);
     }
+    // Si succès, PusherListener ou revalidation supprime la carte
   };
 
+  /* ── Couleurs selon type + urgence ── */
+  const accent =
+    urgency === 'late'
+      ? '#ef4444'
+      : isDelivery
+      ? '#a855f7'
+      : '#f5a623';
+
+  const accentBg =
+    urgency === 'late'
+      ? 'rgba(239,68,68,0.08)'
+      : isDelivery
+      ? 'rgba(168,85,247,0.07)'
+      : 'rgba(245,166,35,0.07)';
+
+  const accentBorder =
+    urgency === 'late'
+      ? 'rgba(239,68,68,0.25)'
+      : isDelivery
+      ? 'rgba(168,85,247,0.2)'
+      : 'rgba(245,166,35,0.2)';
+
+  const chronoColor =
+    urgency === 'late'
+      ? '#ef4444'
+      : urgency === 'warn'
+      ? '#f59e0b'
+      : 'rgba(255,255,255,0.35)';
+
+  const btnGradient = isDelivery
+    ? 'linear-gradient(135deg, #7c3aed, #6d28d9)'
+    : 'linear-gradient(135deg, #059669, #047857)';
+
+  const btnShadow = isDelivery
+    ? '0 8px 24px rgba(124,58,237,0.3)'
+    : '0 8px 24px rgba(5,150,105,0.3)';
+
   return (
-    <div className={`flex flex-col rounded-[2rem] border-2 overflow-hidden shadow-xl transition-all ${
-      isDelivery 
-        ? 'bg-purple-950/20 border-purple-500/30 shadow-purple-900/20' 
-        : 'bg-slate-900 border-white/10'                               
-    }`}>
-      
-      {/* EN-TÊTE DU TICKET */}
-      <div className={`p-5 border-b flex justify-between items-start ${
-        isDelivery ? 'bg-purple-500/10 border-purple-500/20' : 'bg-white/5 border-white/5'
-      }`}>
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xl font-black text-white tracking-tight">
-              #{order.id.slice(-5).toUpperCase()}
+    <article
+      className="relative flex flex-col overflow-hidden rounded-3xl"
+      style={{
+        background: 'rgba(10,10,20,0.95)',
+        border: `1px solid ${accentBorder}`,
+        boxShadow:
+          urgency === 'late'
+            ? '0 0 0 2px rgba(239,68,68,0.15), 0 16px 40px rgba(0,0,0,0.5)'
+            : '0 16px 40px rgba(0,0,0,0.4)',
+      }}
+    >
+      {/* ── Ligne d'accent haut ── */}
+      <div
+        className="h-[3px] w-full"
+        style={{
+          background: `linear-gradient(90deg, ${accent}, transparent)`,
+          opacity: urgency === 'late' ? 1 : 0.8,
+        }}
+      />
+
+      {/* ══ HEADER : ID + TYPE + CHRONO ══ */}
+      <div
+        className="px-5 pt-4 pb-4 flex items-start justify-between gap-3"
+        style={{ borderBottom: `1px solid rgba(255,255,255,0.04)` }}
+      >
+        {/* ID + type + client */}
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-2.5 flex-wrap">
+            <span
+              className="text-3xl leading-none text-white"
+              style={{ fontFamily: "'Bebas Neue', sans-serif", letterSpacing: '0.1em' }}
+            >
+              #{order.id.slice(-6).toUpperCase()}
             </span>
-            <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase tracking-widest flex items-center gap-1 ${
-              isDelivery ? 'bg-purple-500 text-white' : 'bg-primary text-white'
-            }`}>
-              {isDelivery ? <ShoppingBag className="w-3 h-3" /> : <Utensils className="w-3 h-3" />}
-              {isDelivery ? 'Livraison' : 'À Emporter'}
+
+            <span
+              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-black uppercase"
+              style={{
+                background: accentBg,
+                border: `1px solid ${accentBorder}`,
+                color: accent,
+                letterSpacing: '0.18em',
+              }}
+            >
+              {isDelivery
+                ? <Truck className="h-3 w-3" />
+                : <ShoppingBag className="h-3 w-3" />
+              }
+              {isDelivery ? 'Livraison' : 'Emporter'}
             </span>
           </div>
-          <p className="text-sm font-medium text-slate-400">Client: {order.user?.phone || 'Anonyme'}</p>
+
+          <p
+            className="text-xs font-medium"
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              color: 'rgba(255,255,255,0.3)',
+            }}
+          >
+            {order.user?.phone ?? 'Anonyme'}
+          </p>
         </div>
 
-        {/* CHRONOMÈTRE */}
-        <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-sm ${
-          isLate ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-slate-950/50 text-slate-300'
-        }`}>
-          <Clock className="w-4 h-4" />
-          {elapsed} min
+        {/* Chronomètre */}
+        <div
+          className={`flex-shrink-0 flex items-center gap-2 px-3 py-2 rounded-xl ${
+            urgency === 'late' ? 'late-blink urgent-pulse' : ''
+          }`}
+          style={{
+            background: urgency === 'late'
+              ? 'rgba(239,68,68,0.12)'
+              : urgency === 'warn'
+              ? 'rgba(245,158,11,0.1)'
+              : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${
+              urgency === 'late'
+                ? 'rgba(239,68,68,0.3)'
+                : urgency === 'warn'
+                ? 'rgba(245,158,11,0.2)'
+                : 'rgba(255,255,255,0.07)'
+            }`,
+          }}
+        >
+          <Clock className="h-3.5 w-3.5" style={{ color: chronoColor }} />
+          <span
+            className="font-black text-sm leading-none"
+            style={{
+              fontFamily: "'IBM Plex Mono', monospace",
+              color: chronoColor,
+            }}
+          >
+            {elapsed} min
+          </span>
         </div>
       </div>
 
-      {/* ZONE ADRESSE (CORRIGÉE ET DÉDUPLIQUÉE) */}
-      {isDelivery && (order.deliveryAddress || order.deliveryLat) && (
-        <div className="px-5 py-3 bg-purple-950/40 border-b border-purple-500/20 flex flex-col gap-2">
+      {/* ══ ZONE GPS (si livraison) ══ */}
+      {isDelivery && (order.deliveryAddress || mapsUrl) && (
+        <div
+          className="px-5 py-3.5 flex flex-col gap-3"
+          style={{
+            background: 'rgba(168,85,247,0.04)',
+            borderBottom: '1px solid rgba(168,85,247,0.1)',
+          }}
+        >
           {order.deliveryAddress && (
-            <div className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
-              <p className="text-sm text-purple-200 font-medium leading-snug">
+            <div className="flex items-start gap-2.5">
+              <MapPin className="h-4 w-4 text-purple-500 flex-shrink-0 mt-0.5" />
+              <p
+                className="text-sm font-medium leading-snug"
+                style={{ color: 'rgba(196,157,255,0.8)' }}
+              >
                 {order.deliveryAddress}
               </p>
             </div>
           )}
-          
-          {/* BOUTON GOOGLE MAPS AVEC URL VALIDE */}
-          {order.deliveryLat && order.deliveryLng && (
-            <a 
-              href={`https://www.google.com/maps/dir/?api=1&destination=${order.deliveryLat},${order.deliveryLng}`}
+
+          {mapsUrl && (
+            <a
+              href={mapsUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 mt-2 py-2 px-4 bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-300 rounded-lg text-xs font-black uppercase tracking-widest transition-colors"
+              className="inline-flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-[11px] font-black uppercase transition-all active:scale-[0.98]"
+              style={{
+                background: 'rgba(124,58,237,0.15)',
+                border: '1px solid rgba(124,58,237,0.3)',
+                color: '#c084fc',
+                letterSpacing: '0.18em',
+              }}
             >
-              <Navigation className="w-4 h-4" />
-              Ouvrir le GPS (Maps)
+              <Navigation className="h-3.5 w-3.5" />
+              Ouvrir le GPS
             </a>
           )}
         </div>
       )}
 
-      {/* LISTE DES PLATS */}
-      <div className="flex-1 p-5">
-        <ul className="space-y-4">
+      {/* ══ LISTE DES PLATS — LE CŒUR DU KDS ══ */}
+      <div className="flex-1 px-5 py-4">
+        <ul className="space-y-3">
           {order.items.map((item) => (
-            <li key={item.id} className="flex items-start gap-4">
-              <span className={`flex items-center justify-center w-8 h-8 rounded-lg font-black text-lg shrink-0 ${
-                isDelivery ? 'bg-purple-500/20 text-purple-400' : 'bg-slate-800 text-white'
-              }`}>
-                {item.quantity}
-              </span>
-              <span className="text-white font-bold text-lg leading-tight pt-0.5">
+            <li key={item.id} className="flex items-center gap-4">
+              {/* Quantité — énorme pour lecture rapide à distance */}
+              <div
+                className="flex-shrink-0 flex items-center justify-center rounded-xl"
+                style={{
+                  width: 48,
+                  height: 48,
+                  background: accentBg,
+                  border: `1px solid ${accentBorder}`,
+                }}
+              >
+                <span
+                  className="leading-none"
+                  style={{
+                    fontFamily: "'Bebas Neue', sans-serif",
+                    fontSize: '1.8rem',
+                    letterSpacing: '0.04em',
+                    color: accent,
+                  }}
+                >
+                  {item.quantity}
+                </span>
+              </div>
+
+              {/* Nom du plat */}
+              <span
+                className="text-lg font-black text-white leading-tight"
+                style={{ letterSpacing: '-0.01em' }}
+              >
                 {item.product.name}
               </span>
             </li>
@@ -133,28 +281,35 @@ export function OrderTicket({ order }: OrderTicketProps) {
         </ul>
       </div>
 
-      {/* BOUTON DE VALIDATION CUISINE */}
-      <div className="p-4 border-t border-white/5 bg-black/20">
-        <button 
+      {/* ══ BOUTON VALIDATION ══ */}
+      <div
+        className="px-5 py-4"
+        style={{ borderTop: '1px solid rgba(255,255,255,0.04)' }}
+      >
+        <button
           onClick={handleComplete}
           disabled={isPending}
-          className={`w-full py-4 rounded-xl font-black text-white transition-all flex items-center justify-center gap-2 uppercase tracking-widest text-sm ${
-            isDelivery 
-              ? 'bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-500/20' 
-              : 'bg-emerald-600 hover:bg-emerald-500 shadow-lg shadow-emerald-500/20'
-          }`}
+          className="w-full flex items-center justify-center gap-3 py-5 rounded-2xl font-black text-base uppercase transition-all active:scale-[0.98] disabled:opacity-50"
+          style={{
+            background: isPending ? 'rgba(255,255,255,0.05)' : btnGradient,
+            boxShadow: isPending ? 'none' : btnShadow,
+            color: 'white',
+            letterSpacing: '0.12em',
+          }}
         >
           {isPending ? (
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              <span>En cours…</span>
+            </>
           ) : (
             <>
-              <CheckCircle2 className="w-5 h-5" />
-              {isDelivery ? 'Prêt pour le livreur' : 'Commande Prête'}
+              <CheckCircle2 className="h-5 w-5" />
+              {isDelivery ? 'Prêt · Livreur' : 'Commande Prête'}
             </>
           )}
         </button>
       </div>
-
-    </div>
+    </article>
   );
 }

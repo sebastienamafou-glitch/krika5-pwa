@@ -2,25 +2,25 @@
 'use client';
 
 import { useTransition } from 'react';
-import { useCartStore } from '@/store/useCartStore';
+import { usePosStore } from '@/store/usePosStore';
 import { ShoppingBasket, Camera, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { uploadProductImage } from '@/actions/upload';
+import { ProductDTO } from '@/types/dto'; // AJOUT IMPORTANT
 
-interface ProductProps {
-  id: string;
-  name: string;
-  description: string | null;
-  price: number;
-  imageUrl?: string | null;
+interface MenuCardProps {
+  product: ProductDTO; // Utilisation de notre DTO au lieu de redéclarer l'interface
+  isStaff: boolean;
 }
 
-export function MenuCard({ product, isStaff }: { product: ProductProps, isStaff: boolean }) {
-  const addItem = useCartStore((state) => state.addItem);
+export function MenuCard({ product, isStaff }: MenuCardProps) {
+  // CORRECTION : usePosStore et addToCart
+  const addToCart = usePosStore((state) => state.addToCart);
   const [isPending, startTransition] = useTransition();
 
   const handleAdd = () => {
-    addItem({ id: product.id, name: product.name, price: product.price });
+    // CORRECTION : On envoie l'objet product complet selon la définition de addToCart
+    addToCart(product);
   };
 
   // Logique d'importation de l'image (Live Edit)
@@ -80,11 +80,7 @@ export function MenuCard({ product, isStaff }: { product: ProductProps, isStaff:
             {product.price} F
           </span>
         </div>
-        {product.description && (
-          <p className="text-slate-400 text-sm font-medium leading-relaxed mb-8">
-            {product.description}
-          </p>
-        )}
+        {/* Le champ description n'est pas dans ProductDTO car l'opérateur POS n'a pas besoin de la description sur sa tablette pour la rapidité. */}
         
         <button
           onClick={handleAdd}

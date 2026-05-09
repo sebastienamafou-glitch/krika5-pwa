@@ -102,17 +102,19 @@ export function DeliveryTicket({ order }: { order: DeliveryOrder }) {
   }, [isScannerOpen, order.id]);
 
   /* ── Handlers ── */
-  const handleScanSuccess = async (customerId: string) => {
-    setIsLinking(true);
-    const result = await linkCustomerToOrder(order.id, customerId);
-    if (result.success && result.phone) {
-      setLinkedPhone(result.phone);
-      if ('vibrate' in navigator) navigator.vibrate(200);
-    } else {
-      alert(result.error ?? "Erreur lors de l'attribution des points.");
-    }
-    setIsLinking(false);
-  };
+const handleScanSuccess = async (customerId: string) => {
+  setIsLinking(true);
+  const result = await linkCustomerToOrder(order.id, customerId);
+  
+  // CORRECTION : Accès via result.data.phone
+  if (result.success && result.data?.phone) {
+    setLinkedPhone(result.data.phone);
+    if ('vibrate' in navigator) navigator.vibrate(200);
+  } else {
+    alert(result.error ?? "Erreur lors de l'attribution des points.");
+  }
+  setIsLinking(false);
+}
 
   const handleDeliveryComplete = async () => {
     setIsDelivering(true);

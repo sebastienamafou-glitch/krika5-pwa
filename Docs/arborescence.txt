@@ -1,0 +1,105 @@
+Last login: Sat May  9 22:53:48 on ttys004
+You have new mail.
+sebastien@MacBook-Pro-de-Sebastien src % tree
+.
+├── actions
+│   ├── admin.ts
+│   ├── auth.ts
+│   ├── checkout.ts
+│   ├── delivery.ts
+│   ├── kds.ts
+│   ├── loyalty.ts
+│   ├── order.ts
+│   ├── pos.ts
+│   ├── product.ts
+│   └── upload.ts
+├── app
+│   ├── admin
+│   │   ├── create
+│   │   │   └── page.tsx
+│   │   └── page.tsx
+│   ├── api
+│   │   ├── cron
+│   │   │   └── daily-report
+│   │   │       └── route.ts
+│   │   └── export
+│   │       └── csv
+│   │           └── route.ts
+│   ├── carte
+│   │   └── page.tsx
+│   ├── contact
+│   │   └── page.tsx
+│   ├── favicon.ico
+│   ├── fidelite
+│   │   └── page.tsx
+│   ├── fonts
+│   │   ├── GeistMonoVF.woff
+│   │   └── GeistVF.woff
+│   ├── globals.css
+│   ├── hub
+│   │   └── page.tsx
+│   ├── kds
+│   │   └── page.tsx
+│   ├── layout.tsx
+│   ├── livraison
+│   │   ├── DeliveryTicket.tsx
+│   │   └── page.tsx
+│   ├── login
+│   │   └── page.tsx
+│   ├── menu-board
+│   │   ├── MenuBoardClient.tsx
+│   │   └── page.tsx
+│   ├── page.tsx
+│   ├── suivi
+│   │   └── [id]
+│   │       ├── LiveTracker.tsx
+│   │       └── page.tsx
+│   ├── war-room
+│   │   ├── analytics
+│   │   │   └── page.tsx
+│   │   ├── catalogue
+│   │   │   └── page.tsx
+│   │   ├── orders
+│   │   │   └── page.tsx
+│   │   ├── page.tsx
+│   │   └── pos
+│   │       ├── PosClient.tsx
+│   │       └── page.tsx
+│   └── ~offline
+│       └── page.tsx
+├── components
+│   ├── CartHeader.tsx
+│   ├── CartSheet.tsx
+│   ├── CreateCatalogueItem.tsx
+│   ├── CreateStaffForm.tsx
+│   ├── Footer.tsx
+│   ├── MenuCard.tsx
+│   ├── OrderRadar.tsx
+│   ├── OrderTicket.tsx
+│   ├── ProductCard.tsx
+│   ├── ProductTableRow.tsx
+│   ├── PusherListener.tsx
+│   ├── PwaInstallPrompt.tsx
+│   ├── TicketReceipt.tsx
+│   └── ui
+│       ├── badge.tsx
+│       ├── button.tsx
+│       ├── card.tsx
+│       └── sheet.tsx
+├── hooks
+│   └── useOfflineSync.ts
+├── lib
+│   ├── constants.ts
+│   ├── prisma.ts
+│   ├── pusher.ts
+│   ├── utils.ts
+│   └── validations
+│       └── pos.schema.ts
+├── middleware.ts
+├── store
+│   └── usePosStore.ts
+└── types
+    └── dto.ts
+
+34 directories, 65 files
+sebastien@MacBook-Pro-de-Sebastien src % 

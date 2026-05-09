@@ -3,24 +3,18 @@
 
 import { useState } from 'react';
 import Image from 'next/image';
-import { useCartStore } from '@/store/useCartStore';
+import { usePosStore } from '@/store/usePosStore';
 import { Button } from '@/components/ui/button';
 import { ShoppingBasket } from 'lucide-react';
+import { ProductDTO } from '@/types/dto'; // AJOUT IMPORTANT
 
-type ProductProps = {
-  product: {
-    id: string;
-    name: string;
-    description: string | null;
-    price: number;
-    stock: number;
-    isAvailable: boolean;
-    imageUrl: string | null;
-  };
-};
+interface ProductCardProps {
+  product: ProductDTO; // Typage strict
+}
 
-export function ProductCard({ product }: ProductProps) {
-  const addItem = useCartStore((state) => state.addItem);
+export function ProductCard({ product }: ProductCardProps) {
+  // CORRECTION : usePosStore et addToCart
+  const addToCart = usePosStore((state) => state.addToCart);
   const [imageError, setImageError] = useState(false);
 
   // Règles métier strictes : Indisponible si stock à 0 OU si bouton d'arrêt d'urgence activé
@@ -68,14 +62,11 @@ export function ProductCard({ product }: ProductProps) {
       <div className="p-6 flex-1 flex flex-col">
         <h3 className="text-xl font-black text-white mb-2 leading-tight">{product.name}</h3>
         
-        {product.description && (
-          <p className="text-slate-400 text-sm mb-6 leading-relaxed line-clamp-3">
-            {product.description}
-          </p>
-        )}
+        {/* Suppression de l'affichage de la description pour l'opérateur POS */}
         
         <Button 
-          onClick={() => addItem({ id: product.id, name: product.name, price: product.price })}
+          // CORRECTION : On envoie le DTO complet
+          onClick={() => addToCart(product)}
           disabled={isOutOfStock}
           className="mt-auto w-full bg-primary/10 hover:bg-primary hover:text-white text-primary font-bold h-14 rounded-xl text-lg transition-colors border border-primary/20 disabled:opacity-50 disabled:cursor-not-allowed"
         >

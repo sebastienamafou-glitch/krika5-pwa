@@ -1,76 +1,179 @@
-// src/actions/pos.ts
-'use server';
+// /src/actions/pos.ts
+"use server";
 
-import { prisma } from '@/lib/prisma';
-import { revalidatePath } from 'next/cache';
-import { pusherServer } from '@/lib/pusher';
+import { prisma } from "@/lib/prisma";
+import { 
+  openShiftSchema, 
+  closeShiftSchema, 
+  createPosOrderSchema,
+  OpenShiftInput,
+  CloseShiftInput,
+  CreatePosOrderInput
+} from "@/lib/validations/pos.schema";
+import { ActionResponse, ActiveShiftDTO, OrderReceiptDTO } from "@/types/dto";
+import { OrderStatus, PaymentStatus, PaymentMethodType, ShiftStatus } from "@prisma/client";
 
-export async function processPayment(orderId: string, paymentMethod: string) {
+/**
+ * 1. OUVRE UNE SESSION DE CAISSE
+ */
+export async function openShift(input: OpenShiftInput): Promise<ActionResponse<ActiveShiftDTO>> {
   try {
-    await prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true, userId: true, paymentStatus: true } });
-      if (!order || order.paymentStatus !== 'UNPAID') throw new Error('ALREADY_PAID_OR_NOT_FOUND');
+    const validatedData = openShiftSchema.parse(input);
 
-      await tx.order.update({
-        where: { id: orderId },
-        data: { paymentStatus: 'PAID', paymentMethod: paymentMethod },
-      });
-
-      if (order.userId) {
-        await tx.user.update({ where: { id: order.userId }, data: { loyaltyPoints: { increment: 1 } } });
-      }
+    const existingShift = await prisma.cashShift.findFirst({
+      where: {
+        operatorId: validatedData.operatorId,
+        status: ShiftStatus.OPEN,
+      },
     });
-    
-    // NOTIFICATION TEMPS RÉEL (Non bloquante)
-    try {
-      await pusherServer.trigger('kds-channel', 'new-order', { orderId: orderId });
-    } catch (pusherError) {
-      console.error("Avertissement Pusher (POS Payment):", pusherError);
-    }
-    
-    revalidatePath('/war-room/pos');
-    revalidatePath('/war-room');
-    return { success: true };
 
-  } catch (error: unknown) {
-    if (error instanceof Error && error.message === 'ALREADY_PAID_OR_NOT_FOUND') return { success: false, error: "Commande introuvable ou déjà encaissée." };
-    return { success: false, error: "Échec de l'encaissement et de l'attribution des points." };
+    if (existingShift) {
+      return { success: false, error: "Une session de caisse est déjà ouverte pour cet opérateur." };
+    }
+
+    const newShift = await prisma.cashShift.create({
+      data: {
+        operatorId: validatedData.operatorId,
+        openingFloat: validatedData.openingFloat,
+        expectedCash: validatedData.openingFloat, 
+      },
+      include: {
+        operator: true,
+      },
+    });
+
+    const shiftDTO: ActiveShiftDTO = {
+      id: newShift.id,
+      operatorId: newShift.operatorId,
+      operatorName: newShift.operator.phone, 
+      status: newShift.status,
+      openingFloat: newShift.openingFloat,
+      expectedCash: newShift.expectedCash,
+      openedAt: newShift.openedAt,
+    };
+
+    return { success: true, data: shiftDTO };
+  } catch {
+    return { success: false, error: "Erreur lors de l'ouverture de la caisse." };
   }
 }
 
-export async function processFreeRewardOrder(orderId: string) {
+/**
+ * 2. FERME UNE SESSION DE CAISSE
+ */
+export async function closeShift(input: CloseShiftInput): Promise<ActionResponse> {
   try {
-    await prisma.$transaction(async (tx) => {
-      const order = await tx.order.findUnique({ where: { id: orderId }, select: { id: true, userId: true, paymentStatus: true } });
-      if (!order || order.paymentStatus !== 'UNPAID' || !order.userId) throw new Error('INVALID_ORDER_OR_USER');
+    const validatedData = closeShiftSchema.parse(input);
 
-      const user = await tx.user.findUnique({ where: { id: order.userId }, select: { loyaltyPoints: true } });
-      if (!user || user.loyaltyPoints < 10) throw new Error('INSUFFICIENT_POINTS');
+    const shift = await prisma.cashShift.findUnique({
+      where: { id: validatedData.shiftId },
+    });
 
-      await tx.order.update({
-        where: { id: orderId },
-        data: { paymentStatus: 'PAID', paymentMethod: 'REWARD_FREE_MENU' },
+    if (!shift || shift.status === ShiftStatus.CLOSED) {
+      return { success: false, error: "Session de caisse introuvable ou déjà fermée." };
+    }
+
+    await prisma.cashShift.update({
+      where: { id: validatedData.shiftId },
+      data: {
+        status: ShiftStatus.CLOSED,
+        actualCash: validatedData.actualCash,
+        closedAt: new Date(),
+      },
+    });
+
+    return { success: true };
+  } catch {
+    return { success: false, error: "Erreur lors de la fermeture de la caisse." };
+  }
+}
+
+/**
+ * 3. CRÉATION DE COMMANDE & ENCAISSEMENT
+ */
+export async function createPosOrder(input: CreatePosOrderInput): Promise<ActionResponse<OrderReceiptDTO>> {
+  try {
+    const validatedData = createPosOrderSchema.parse(input);
+
+    const orderReceipt = await prisma.$transaction(async (tx) => {
+      const shift = await tx.cashShift.findUnique({
+        where: { id: validatedData.shiftId },
       });
 
-      await tx.user.update({ where: { id: order.userId }, data: { loyaltyPoints: { decrement: 10 } } });
-    });
-    
-    // NOTIFICATION TEMPS RÉEL (Non bloquante)
-    try {
-      await pusherServer.trigger('kds-channel', 'new-order', { orderId: orderId });
-    } catch (pusherError) {
-      console.error("Avertissement Pusher (POS Reward):", pusherError);
-    }
-    
-    revalidatePath('/war-room/pos');
-    revalidatePath('/war-room');
-    return { success: true };
+      if (!shift || shift.status === ShiftStatus.CLOSED) {
+        throw new Error("La session de caisse est fermée.");
+      }
 
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      if (error.message === 'INSUFFICIENT_POINTS') return { success: false, error: "Le client n'a pas assez de points." };
-      if (error.message === 'INVALID_ORDER_OR_USER') return { success: false, error: "Commande ou utilisateur invalide." };
-    }
-    return { success: false, error: "Échec de l'application de la récompense." };
+      const order = await tx.order.create({
+        data: {
+          operatorId: validatedData.operatorId,
+          shiftId: validatedData.shiftId,
+          totalAmount: validatedData.totalAmount,
+          paymentMethod: validatedData.paymentMethod as PaymentMethodType,
+          paymentStatus: PaymentStatus.PAID,
+          status: OrderStatus.COMPLETED,
+          orderType: validatedData.orderType,
+          items: {
+            create: validatedData.items.map((item) => ({
+              productId: item.productId,
+              quantity: item.quantity,
+              unitPrice: item.unitPrice,
+            })),
+          },
+        },
+        include: {
+          operator: true,
+          items: {
+            include: {
+              product: true,
+            },
+          },
+        },
+      });
+
+      if (validatedData.paymentMethod === PaymentMethodType.CASH) {
+        await tx.cashShift.update({
+          where: { id: validatedData.shiftId },
+          data: {
+            expectedCash: {
+              increment: validatedData.totalAmount,
+            },
+          },
+        });
+      }
+
+      for (const item of validatedData.items) {
+        await tx.product.update({
+          where: { id: item.productId },
+          data: {
+            stock: {
+              decrement: item.quantity,
+            },
+          },
+        });
+      }
+
+      const receipt: OrderReceiptDTO = {
+        id: order.id,
+        totalAmount: order.totalAmount,
+        status: order.status,
+        paymentStatus: order.paymentStatus,
+        paymentMethod: order.paymentMethod,
+        createdAt: order.createdAt,
+        // CORRECTION TS18047 : Null-safety sur l'opérateur
+        operatorName: order.operator?.phone ?? "Système",
+        items: order.items.map((oi) => ({
+          productName: oi.product.name,
+          quantity: oi.quantity,
+          unitPrice: oi.unitPrice,
+        })),
+      };
+
+      return receipt;
+    });
+
+    return { success: true, data: orderReceipt };
+  } catch {
+    return { success: false, error: "Transaction refusée." };
   }
 }

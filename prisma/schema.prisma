@@ -9,7 +9,10 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// 1. Gestion des Rôles pour le Login Admin
+// ==========================================
+// ENUMS (Typage Strict)
+// ==========================================
+
 enum Role {
   CUSTOMER
   ADMIN
@@ -21,50 +24,6 @@ enum PaymentStatus {
   PAID
 }
 
-model User {
-  id            String   @id @default(cuid())
-  phone         String   @unique
-  password      String? // Hashé, requis uniquement pour ADMIN/STAFF
-  role          Role     @default(CUSTOMER)
-  loyaltyPoints Int      @default(0) // Compteur sécurisé pour la fidélité
-  orders        Order[]
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-}
-
-// 2. Nouvel axe : Catégories (Menus, Boissons, Desserts)
-model Category {
-  id       String    @id @default(cuid())
-  name     String    @unique // ex: "Boissons"
-  slug     String    @unique // ex: "boissons"
-  order    Int       @default(0) // Pour trier l'affichage dans le header
-  products Product[]
-
-  // CORRECTION : Champs d'audit obligatoires
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// 3. Mise à jour du Produit : Stock et Catégorie
-model Product {
-  id          String      @id @default(cuid())
-  name        String
-  description String?
-  price       Int // CORRECTION : Int pour le FCFA
-  imageUrl    String?
-  categoryId  String
-  category    Category    @relation(fields: [categoryId], references: [id])
-  stock       Int         @default(0) // Gestion de l'inventaire
-  isAvailable Boolean     @default(true) // Bouton d'arrêt d'urgence si rupture
-  orderItems  OrderItem[]
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  // OPTIMISATION : Index sur la clé étrangère
-  @@index([categoryId])
-}
-
-// Les commandes restent globalement inchangées pour l'instant
 enum OrderStatus {
   PENDING
   PREPARING
@@ -78,36 +37,138 @@ enum OrderType {
   DELIVERY // Livraison
 }
 
-model Order {
-  id              String        @id @default(cuid())
-  userId          String?
-  user            User?         @relation(fields: [userId], references: [id])
-  totalAmount     Int // CORRECTION : Int pour le FCFA
-  status          OrderStatus   @default(PENDING)
-  paymentMethod   String
-  items           OrderItem[]
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
-  paymentStatus   PaymentStatus @default(UNPAID)
-  orderType       OrderType     @default(TAKEAWAY)
-  deliveryAddress String?
-  deliveryLat     Float? // NOUVEAU : Latitude (Float est correct pour le GPS)
-  deliveryLng     Float? // NOUVEAU : Longitude (Float est correct pour le GPS)
+enum PaymentMethodType {
+  CASH
+  MOBILE_MONEY
+  CARD
+  CASH_DELIVERY
+}
 
-  // OPTIMISATION : Index sur la clé étrangère
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+// ==========================================
+// MODELS
+// ==========================================
+
+model User {
+  id            String  @id @default(cuid())
+  phone         String  @unique
+  password      String? // Hashé, requis uniquement pour ADMIN/STAFF
+  role          Role    @default(CUSTOMER)
+  loyaltyPoints Int     @default(0) // Compteur sécurisé pour la fidélité
+
+  // Relations
+  orders Order[] @relation("CustomerOrders")
+
+  // NOUVELLES RELATIONS (Architecture POS / Zero Trust)
+  processedOrders Order[]     @relation("OperatorOrders")
+  shifts          CashShift[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Category {
+  id       String    @id @default(cuid())
+  name     String    @unique // ex: "Boissons"
+  slug     String    @unique // ex: "boissons"
+  order    Int       @default(0) // Pour trier l'affichage dans le header
+  products Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+  price       Int // FCFA
+  imageUrl    String?
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  stock       Int         @default(0) // Gestion de l'inventaire
+  isAvailable Boolean     @default(true) // Bouton d'arrêt d'urgence si rupture
+  orderItems  OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([categoryId])
+}
+
+model Order {
+  id String @id @default(cuid())
+
+  // 1. Le Client (Optionnel pour de la vente au comptoir)
+  userId String?
+  user   User?   @relation("CustomerOrders", fields: [userId], references: [id])
+
+  // 2. L'Opérateur (Optionnel pour les commandes clients en ligne)
+  operatorId String?
+  operator   User?   @relation("OperatorOrders", fields: [operatorId], references: [id])
+
+  // 3. La Session de Caisse (Optionnel pour les commandes clients en ligne)
+  shiftId String?
+  shift   CashShift? @relation(fields: [shiftId], references: [id])
+
+  totalAmount   Int // FCFA
+  status        OrderStatus       @default(PENDING)
+  paymentStatus PaymentStatus     @default(UNPAID)
+  paymentMethod PaymentMethodType
+  orderType     OrderType         @default(TAKEAWAY)
+
+  deliveryAddress String?
+  deliveryLat     Float?
+  deliveryLng     Float?
+
+  items OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
+  @@index([operatorId])
+  @@index([shiftId])
 }
 
 model OrderItem {
-  id        String  @id @default(cuid())
-  orderId   String
-  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  id String @id @default(cuid())
+
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   productId String
   product   Product @relation(fields: [productId], references: [id])
-  quantity  Int
-  unitPrice Int // CORRECTION : Int pour le FCFA
 
-  // OPTIMISATION : Index sur les clés étrangères
+  quantity  Int
+  unitPrice Int // FCFA
+
   @@index([orderId])
   @@index([productId])
+}
+
+model CashShift {
+  id String @id @default(cuid())
+
+  operatorId String
+  operator   User   @relation(fields: [operatorId], references: [id])
+
+  status ShiftStatus @default(OPEN)
+
+  openingFloat Int // Fond de caisse au démarrage en FCFA
+  expectedCash Int  @default(0) // Calculé par le système
+  actualCash   Int? // Saisi à la clôture (Clôture aveugle)
+
+  openedAt DateTime  @default(now())
+  closedAt DateTime?
+
+  orders Order[]
+
+  @@index([operatorId])
 }

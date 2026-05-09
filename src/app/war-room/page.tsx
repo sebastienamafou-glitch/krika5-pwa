@@ -5,7 +5,7 @@ import {
   ChefHat, TrendingUp, ShoppingBag,
   Filter, PieChart, X, Zap,
   ArrowUpRight, AlertTriangle, CheckCircle2,
-  Truck, ShoppingCart
+  Truck, ShoppingCart,ShieldCheck,
 } from 'lucide-react';
 import Link from 'next/link';
 import { startOfDay, endOfDay, parseISO, format } from 'date-fns';
@@ -255,6 +255,15 @@ export default async function WarRoomPage({ searchParams }: Props) {
               style={{ background: 'rgba(255,255,255,0.03)' }}
             >
               <Package className="h-4 w-4" /> Stocks
+            </Link>
+
+            <Link 
+              href="/war-room/analytics" 
+              className="group flex items-center gap-2.5 px-5 py-2.5 rounded-xl font-black text-xs uppercase tracking-widest border border-amber-500/20 text-amber-500 hover:bg-amber-500/10 transition-all"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              Audit
+              <ArrowUpRight className="h-3 w-3 opacity-50 group-hover:opacity-100 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
             </Link>
 
             <a

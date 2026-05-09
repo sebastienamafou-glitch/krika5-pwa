@@ -13,20 +13,35 @@ export default function LoginPage() {
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState('');
   
-  // État pour la visibilité du mot de passe
   const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    console.log("🟢 [DEBUG] 1. Formulaire soumis (Bouton cliqué)");
+    
     setError('');
     const formData = new FormData(e.currentTarget);
+    console.log("🟢 [DEBUG] 2. Identifiant capturé :", formData.get('phone'));
 
     startTransition(async () => {
-      const result = await login(formData);
-      if (result?.error) {
-        setError(result.error);
-      } else {
-        router.push('/hub');
+      console.log("🟢 [DEBUG] 3. Appel de la Server Action 'login'...");
+      
+      try {
+        const result = await login(formData);
+        console.log("🟢 [DEBUG] 4. Réponse reçue du serveur :", result);
+
+        if (result?.error) {
+          console.error("🔴 [DEBUG] 5. Erreur métier renvoyée :", result.error);
+          setError(result.error);
+        } else if (result?.success) {
+          console.log("🟢 [DEBUG] 5. Succès ! Redirection vers /hub initiée...");
+          router.push('/hub');
+        } else {
+          console.warn("🟡 [DEBUG] 5. Réponse serveur inattendue :", result);
+        }
+      } catch (err) {
+        console.error("🔴 [DEBUG] CRASH FATAL de la Server Action :", err);
+        setError("Une erreur critique est survenue.");
       }
     });
   };
@@ -58,6 +73,7 @@ export default function LoginPage() {
               type="text" 
               required 
               placeholder="ex: admin"
+              suppressHydrationWarning
               className="w-full bg-slate-950 border border-white/10 rounded-xl h-14 px-4 text-white focus:outline-none focus:border-primary transition-colors font-medium"
             />
           </div>
@@ -70,20 +86,16 @@ export default function LoginPage() {
                 type={showPassword ? "text" : "password"} 
                 required 
                 placeholder="••••••••"
+                suppressHydrationWarning
                 className="w-full bg-slate-950 border border-white/10 rounded-xl h-14 pl-4 pr-12 text-white focus:outline-none focus:border-primary transition-colors font-medium"
               />
-              {/* Bouton de visibilité */}
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
-                tabIndex={-1} // Évite de casser la navigation au clavier (Tab)
+                tabIndex={-1}
               >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
-                ) : (
-                  <Eye className="h-5 w-5" />
-                )}
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
               </button>
             </div>
           </div>

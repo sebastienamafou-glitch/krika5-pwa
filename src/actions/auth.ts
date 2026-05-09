@@ -37,7 +37,9 @@ export async function login(formData: FormData) {
 
   cookies().set('kds_session', token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    // Ne rend le cookie "Secure" que s'il est hébergé sur Vercel (qui gère le HTTPS)
+    // Cela permet à ton npm start de fonctionner sur http://localhost
+    secure: process.env.NODE_ENV === 'production' && process.env.VERCEL === '1',
     sameSite: 'lax',
     path: '/',
     maxAge: 60 * 60 * 12,

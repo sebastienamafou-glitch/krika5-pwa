@@ -3,7 +3,8 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import { cn } from "@/lib/utils";
 import "./globals.css";
-import { PwaInstallPrompt } from '@/components/PwaInstallPrompt'; // Ajoute cet import
+import { PwaInstallPrompt } from '@/components/PwaInstallPrompt';
+import { SpeedInsights } from "@vercel/speed-insights/next"; // Collecte des performances réelles
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-sans" });
 
@@ -11,12 +12,12 @@ export const viewport: Viewport = {
   themeColor: "#15803d",
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1, // Empêche le zoom auto sur iOS
+  maximumScale: 1, // Empêche le zoom auto sur les champs input (iOS)
 };
 
 export const metadata: Metadata = {
   title: "KRIKA'5",
-  description: "Tous nos menus à 1500 FCFA",
+  description: "Tous nos menus sont disponibles en ligne !",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
@@ -38,6 +39,7 @@ export default function RootLayout({
       <body className={cn("min-h-screen bg-background font-sans antialiased", inter.variable)}>
         {children}
         <PwaInstallPrompt />
+        <SpeedInsights /> {/* Monitoring RUM activé */}
       </body>
     </html>
   );

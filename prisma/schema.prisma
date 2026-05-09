@@ -172,3 +172,17 @@ model CashShift {
 
   @@index([operatorId])
 }
+
+// Ajout suggéré au fichier prisma/schema.prisma
+model PerformanceLog {
+  id        String   @id @default(cuid())
+  metric    String   // LCP, FID, CLS, TTFB
+  value     Float
+  path      String   // ex: /war-room/pos
+  device    String   // Mobile, Desktop
+  network   String?  // 4G, 3G, WiFi (si disponible via l'API Network Information)
+  createdAt DateTime @default(now())
+
+  @@index([metric])
+  @@index([path])
+}

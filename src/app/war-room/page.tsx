@@ -188,6 +188,7 @@ export default async function WarRoomPage({ searchParams }: Props) {
           background: 'linear-gradient(135deg, #07070f 0%, #0d0d1a 50%, #070710 100%)',
         }}
       >
+        <meta httpEquiv="refresh" content="15" />
         <header
           className="sticky top-0 z-50 px-8 py-5 flex items-center justify-between"
           style={{
@@ -410,7 +411,7 @@ export default async function WarRoomPage({ searchParams }: Props) {
               sub={`Livraison · Emporter · ${deliveryRate}% livré`}
               accent="#a855f7"
               icon={PieChart}
-              fill={deliveryRate}
+              fill={deliveryRate > 0 ? deliveryRate : (totalOrders > 0 ? 100 : 0)}
             />
           </div>
 

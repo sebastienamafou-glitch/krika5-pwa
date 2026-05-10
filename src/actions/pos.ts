@@ -12,7 +12,7 @@ import {
 } from "@/lib/validations/pos.schema";
 import { ActionResponse, ActiveShiftDTO, OrderReceiptDTO } from "@/types/dto";
 import { OrderStatus, PaymentStatus, PaymentMethodType, ShiftStatus } from "@prisma/client";
-
+import { pusherServer } from "@/lib/pusher";
 /**
  * 1. OUVRE UNE SESSION DE CAISSE
  */
@@ -108,10 +108,12 @@ export async function createPosOrder(input: CreatePosOrderInput): Promise<Action
         data: {
           operatorId: validatedData.operatorId,
           shiftId: validatedData.shiftId,
+          // Ajout du userId (si Zod l'a conservé) pour lier les points de fidélité
+          userId: validatedData.userId || null, 
           totalAmount: validatedData.totalAmount,
           paymentMethod: validatedData.paymentMethod as PaymentMethodType,
           paymentStatus: PaymentStatus.PAID,
-          status: OrderStatus.COMPLETED,
+          status: OrderStatus.PENDING,
           orderType: validatedData.orderType,
           items: {
             create: validatedData.items.map((item) => ({
@@ -123,33 +125,21 @@ export async function createPosOrder(input: CreatePosOrderInput): Promise<Action
         },
         include: {
           operator: true,
-          items: {
-            include: {
-              product: true,
-            },
-          },
+          items: { include: { product: true } },
         },
       });
 
       if (validatedData.paymentMethod === PaymentMethodType.CASH) {
         await tx.cashShift.update({
           where: { id: validatedData.shiftId },
-          data: {
-            expectedCash: {
-              increment: validatedData.totalAmount,
-            },
-          },
+          data: { expectedCash: { increment: validatedData.totalAmount } },
         });
       }
 
       for (const item of validatedData.items) {
         await tx.product.update({
           where: { id: item.productId },
-          data: {
-            stock: {
-              decrement: item.quantity,
-            },
-          },
+          data: { stock: { decrement: item.quantity } },
         });
       }
 
@@ -160,7 +150,6 @@ export async function createPosOrder(input: CreatePosOrderInput): Promise<Action
         paymentStatus: order.paymentStatus,
         paymentMethod: order.paymentMethod,
         createdAt: order.createdAt,
-        // CORRECTION TS18047 : Null-safety sur l'opérateur
         operatorName: order.operator?.phone ?? "Système",
         items: order.items.map((oi) => ({
           productName: oi.product.name,
@@ -172,8 +161,17 @@ export async function createPosOrder(input: CreatePosOrderInput): Promise<Action
       return receipt;
     });
 
+    // 🔔 ZERO TRUST NOTIFICATION : On réveille le KDS
+    try {
+      await pusherServer.trigger('kds-channel', 'new-order', orderReceipt);
+    } catch (pusherError) {
+      console.error("⚠️ [Pusher] Échec de notification KDS :", pusherError);
+    }
+
     return { success: true, data: orderReceipt };
-  } catch {
-    return { success: false, error: "Transaction refusée." };
+  } catch (error) {
+    // 🚨 DEBUG : On logge l'erreur exacte pour le terminal
+    console.error("❌ [pos.ts] Crash Server Action 'createPosOrder':", error);
+    return { success: false, error: "Transaction refusée par le système." };
   }
 }

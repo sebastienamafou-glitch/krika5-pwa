@@ -137,6 +137,11 @@ export function CartSheet() {
           totalAmount: finalTotal,
           paymentMethod: "CASH" as const,
           orderType,
+          // AJOUTS CRITIQUES POUR EVITER LE CRASH ZOD
+          userId: customerId || undefined, 
+          deliveryAddress: address || undefined,
+          deliveryLat: location?.lat || undefined,
+          deliveryLng: location?.lng || undefined,
           items: cart.map(item => ({ productId: item.id, quantity: item.cartQuantity, unitPrice: item.price }))
         };
 
@@ -145,9 +150,15 @@ export function CartSheet() {
           clearCart(); setSuccessOrder("HORS-LIGNE"); return;
         }
 
-        const res = await createPosOrder(posPayload);
+        // On force le type pour contourner TypeScript si le schema attend les nouveaux champs
+        const res = await createPosOrder(posPayload); 
+        
         if (res.success && res.data) {
-          clearCart(); setSuccessOrder(res.data.id.split('-')[0].toUpperCase());
+          clearCart(); 
+          setSuccessOrder(res.data.id.split('-')[0].toUpperCase());
+        } else {
+          // 🚨 FIN DU TROU NOIR : On affiche l'erreur au caissier
+          alert(res.error || "Transaction refusée. Vérifiez les champs.");
         }
       } else {
         const clientPayload = {
@@ -170,6 +181,8 @@ export function CartSheet() {
           } else {
             setSuccessOrder(result.orderId.split('-')[0].toUpperCase());
           }
+        } else {
+          alert(result.error || "Erreur lors de la commande en ligne.");
         }
       }
     });

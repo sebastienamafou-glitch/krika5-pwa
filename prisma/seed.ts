@@ -20,7 +20,7 @@ async function main() {
     },
   });
 
-  // 2. Création des Catégories (Correction de la contrainte Null P2011)
+  // 2. Création des Catégories
   const catMenu = await prisma.category.upsert({
     where: { slug: 'menus' },
     update: { name: 'Menus KRIKA\'5', order: 1 },
@@ -33,11 +33,11 @@ async function main() {
     create: { name: 'Boissons Fraîches', slug: 'boissons', order: 2 },
   });
 
-  // 3. Création des Produits avec assignation de catégorie et stock
+  // 3. Création des Produits avec des CUID valides
   const products = [
     // --- MENUS ---
     {
-      id: '1',
+      id: 'cm0yw07r200007q1hg5d12345',
       name: 'Menu Garba "Clean"',
       description: 'Attiéké frais, Thon frit calibré (80g), Piment frais & Oignons. Hygiène garantie.',
       price: 1500,
@@ -45,7 +45,7 @@ async function main() {
       stock: 50,
     },
     {
-      id: '2',
+      id: 'cm0yw07r200017q1hg5d12346',
       name: 'Menu Smash Burger',
       description: 'Pain Brioché, Bœuf Smashé (60g), Cheddar fondant, Oignons grillés, Sauce Krika.',
       price: 1500,
@@ -53,7 +53,7 @@ async function main() {
       stock: 30,
     },
     {
-      id: '3',
+      id: 'cm0yw07r200027q1hg5d12347',
       name: 'Menu Mini-Chawarma',
       description: 'Pain Pita, Poulet Mariné grillé, Crudités croquantes, Crème d\'ail onctueuse.',
       price: 1500,
@@ -61,7 +61,7 @@ async function main() {
       stock: 40,
     },
     {
-      id: '4',
+      id: 'cm0yw07r200037q1hg5d12348',
       name: 'Menu Duo Mini-Pizzas',
       description: 'Deux mini-pizzas : 1 Reine (Jambon/Fromage) + 1 Trois Fromages. Croustillantes.',
       price: 1500,
@@ -70,7 +70,7 @@ async function main() {
     },
     // --- BOISSONS ---
     {
-      id: 'b1',
+      id: 'cm0yw07r200047q1hg5d12349',
       name: 'Bissap Maison',
       description: 'Jus de fleurs d\'hibiscus, menthe fraîche et sucre de canne. Fait maison.',
       price: 500,
@@ -78,7 +78,7 @@ async function main() {
       stock: 100,
     },
     {
-      id: 'b2',
+      id: 'cm0yw07r200057q1hg5d12350',
       name: 'fantai',
       description: 'Jus de gingembre épicé et citron. Fait maison.',
       price: 500,
@@ -86,7 +86,7 @@ async function main() {
       stock: 100,
     },
     {
-      id: 'b3',
+      id: 'cm0yw07r200067q1hg5d12351',
       name: 'Coca-Cola (33cl)',
       description: 'Canette bien glacée.',
       price: 1000,
@@ -115,7 +115,7 @@ async function main() {
 main()
   .catch((e) => {
     console.error('❌ Erreur lors du seeding:', e);
-    process.exit(1); // En cas d'erreur sans utilisation de la variable d'erreur, catch s'écrira simplement catch { ... } si on ne l'utilise pas, mais ici on l'affiche.
+    process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();

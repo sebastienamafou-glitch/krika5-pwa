@@ -1,4 +1,4 @@
-// /src/lib/validations/pos.schema.ts
+// src/lib/validations/pos.schema.ts
 import { z } from "zod";
 
 // --- VALIDATION DES SESSIONS DE CAISSE (SHIFTS) ---
@@ -22,7 +22,7 @@ export type CloseShiftInput = z.infer<typeof closeShiftSchema>;
 const orderItemSchema = z.object({
   productId: z.string().cuid(),
   quantity: z.number().int().positive(),
-  unitPrice: z.number().int().positive(),
+  unitPrice: z.number().int().positive(), // FCFA
 });
 
 export const createPosOrderSchema = z.object({
@@ -31,6 +31,13 @@ export const createPosOrderSchema = z.object({
   totalAmount: z.number().int().positive(),
   paymentMethod: z.enum(["CASH", "MOBILE_MONEY", "CARD"]),
   orderType: z.enum(["TAKEAWAY", "DELIVERY"]),
+  
+  // 👉 TYPAGE STRICT DES NOUVEAUX CHAMPS (Zéro "any" toléré)
+  userId: z.string().optional().nullable(),
+  deliveryAddress: z.string().optional().nullable(),
+  deliveryLat: z.number().optional().nullable(),
+  deliveryLng: z.number().optional().nullable(),
+
   items: z.array(orderItemSchema).min(1, { message: "La commande ne peut pas être vide" }),
 });
 
